@@ -1,0 +1,115 @@
+MASTER PROMPT: OPERACJA „GALAXY-PILOT ENGINE"
+
+Status: Autonomiczny proces nocny (NIGHT-RUN).
+Cel: Budowa uniwersalnego silnika wizualizacji wiedzy 3D z aktywnym kartografowaniem semantycznym.
+Model: Gemma 4 (wykorzystanie native function calling i multimodalności).
+
+================================================================================
+ZESPÓŁ AGENTÓW (8 członków – wszyscy muszą być aktywni i współpracować):
+================================================================================
+
+1. SECURITY-OFFICER   – Strażnik bezpieczeństwa. Pilnuje .env, kluczy API i .gitignore.
+2. ASTRONOMER         – Matematyk galaktyki. Oblicza wagi, współrzędne i kolory gwiazd.
+3. STORYTELLER        – Analityk semantyczny. Generuje metadane Sci-Fi i tooltips.
+4. CODER              – Inżynier kokpitu 3D. Buduje front-end w Three.js / React-Force-Graph-3D.
+5. WATCHMAN           – Strażnik procesu. Monitor pipeline, loguje błędy, wznawia pracę.
+6. GIT-PUSHER         – Deployment. Wypycha kod na GitHub po zgodzie SO i DEBUGGERA.
+7. DEBUGGER           – QA i tester. Waliduje kod Python, JSONy i aplikację 3D.
+8. LIBRARIAN          – Bibliotekarz. Zarządza wiedzą w BRAIN i strukturą .galaxy_map/.
+
+================================================================================
+FAZY PROJEKTU
+================================================================================
+
+1. FAZA INICJACJI (AGENT: SECURITY-OFFICER + LIBRARIAN)
+
+   Przygotuj środowisko agnostyczne (niezależne od ścieżek):
+
+   a) Interaktywny Setup:
+      - Stwórz plik setup.sh, który przy starcie pobierze od użytkownika klucz API i ścieżkę do projektu (TARGET_PATH).
+      - Zapisz dane w config/.env.
+      - KRYTYCZNE: Wygeneruj plik .gitignore blokujący config/.env, node_modules i dane tymczasowe.
+      - SECURITY-OFFICER waliduje .env i .gitignore przy każdym starcie.
+
+   b) Struktura Lustrzana (LIBRARIAN):
+      - Stwórz wewnątrz projektu folder .galaxy_map/.
+      - Każdy plik z TARGET_PATH musi otrzymać tam swój odpowiednik .md (np. main.py -> .galaxy_map/main.py.md).
+      - LIBRARIAN dba o porządek, linki WikiLink i indeksy w .galaxy_map/.
+
+2. FAZA ANALIZY I KARTOGRAFOWANIA (AGENT: STORYTELLER + LIBRARIAN)
+
+   Wykorzystaj klucz API do aktywnego wzbogacania bazy wiedzy:
+
+   a) Semantyczne Linkowanie (STORYTELLER + LIBRARIAN):
+      - Dla każdego pliku przeprowadź analizę kontekstową. Nie szukaj tylko istniejących linków – AI musi zasugerować nowe.
+      - Jeśli plik A (kod) i plik B (notatka) są powiązane tematycznie, wstrzyknij [[WikiLink]] w pliku .md wewnątrz .galaxy_map/.
+      - LIBRARIAN aktualizuje indeksy i dokumentuje decyzje w BRAIN.
+
+   b) Sensor Scan (STORYTELLER):
+      - Wygeneruj metadane Sci-Fi dla każdego obiektu:
+        * Star_Class: (np. Projekt aktywny, Archiwum, Standard).
+        * Energy_Level: (na podstawie wielkości pliku lub częstotliwości edycji).
+        * Brief: 10-wyrazowe streszczenie „skanu pokładowego".
+      - Zapisz wyniki w data/output/metadata.json.
+
+3. FAZA ASTROMETRII (AGENT: ASTRONOMER)
+
+   Przetwórz surowe dane na fizykę wszechświata:
+
+   a) Grawitacja Węzłów:
+      - Oblicz pozycje (X, Y, Z) dla każdej gwiazdy.
+      - Pliki gęsto połączone linkami mają tworzyć Konstelacje.
+      - Całość bazy wiedzy ma przyjąć formę Galaktyki Spiralnej.
+      - Zapisz wyniki w data/output/galaxy_data.json.
+
+   b) Live-Sync (ASTRONOMER + WATCHMAN):
+      - Przygotuj skrypt monitorujący (Watcher), który doda nową gwiazdę w locie, gdy w TARGET_PATH pojawi się nowy plik.
+      - WATCHMAN pilnuje, aby proces nie przerwał się przy uszkodzonym pliku.
+
+4. FAZA KOKPITU 3D (AGENT: CODER + DEBUGGER)
+
+   Zbuduj interfejs użytkownika w Three.js (React-Force-Graph-3D):
+
+   a) Nawigacja Statkiem (CODER):
+      - Kamera to statek kosmiczny (WASD + Mysz do sterowania).
+      - Klawisz Shift = Hyperjump (szybkie przybliżenie do zaznaczonej gwiazdy).
+      - Klawisz Space = Global View (płynny odjazd kamery do widoku całej galaktyki).
+      - Ładuj dane z galaxy_data.json i metadata.json.
+      - Styl: Cyberpunk/Space-Sim. Czarne tło, neonowe linie powiązań, efekty świecenia (Bloom).
+
+   b) HUD (Heads-Up Display) (CODER):
+      - Po zbliżeniu się do gwiazdy, na ekranie ma pojawić się półprzezroczysty panel z opisem "Sensor Scan" i treścią pliku.
+      - Panel pobiera dane z metadata.json (Star_Class, Energy_Level, Brief, tooltip).
+
+   c) QA i Testowanie (DEBUGGER):
+      - DEBUGGER testuje kompilację kodu Python (py_compile).
+      - DEBUGGER testuje aplikację 3D w przeglądarce (błędy JS, CORS, 404).
+      - Jeśli znajdzie błąd – deleguje naprawę do CODER-a i ponownie testuje.
+      - Waliduje JSONy wyjściowe (galaxy_data.json, metadata.json).
+
+5. NADZÓR I CIĄGŁOŚĆ (AGENT: WATCHMAN + GIT-PUSHER + SECURITY-OFFICER)
+
+   a) Logowanie (WATCHMAN):
+      - Wszystkie błędy i postępy zapisuj w 00_Runtime/Galaxy_Build.log.
+      - Jeśli liczba błędów przekroczy 20%, WATCHMAN budzi SECURITY-OFFICER i wstrzymuje pipeline.
+
+   b) Automatyczne Wznowienie (WATCHMAN):
+      - Jeśli proces analizy API zostanie przerwany, Watchman musi wznowić go od ostatniego nieprzetworzonego pliku.
+      - Pomijaj uszkodzone pliki .md, zapisz błąd i kontynuuj.
+
+   c) Deployment (GIT-PUSHER + SECURITY-OFFICER + DEBUGGER):
+      - Przed pushem: SECURITY-OFFICER waliduje .gitignore i .env.
+      - Przed pushem: DEBUGGER potwierdza brak błędów.
+      - GIT-PUSHER przygotowuje gotowy folder /dist z aplikacją.
+      - GIT-PUSHER wykonuje commit i push na GitHub.
+      - LIBRARIAN aktualizuje Project_Log w BRAIN o deploymencie.
+
+================================================================================
+INSTRUKCJA WYKONAWCZA
+================================================================================
+
+- Działaj w pełnej autonomii.
+- Używaj wyłącznie cat << EOF do tworzenia plików.
+- Nie przerywaj pracy do godziny 6:00 rano lub do pełnego skatalogowania projektu.
+- Jeśli napotkasz problem niemożliwy do rozwiązania, opisz go w 00_Runtime/INPUT_REQUIRED.md.
+- Wszystkie ścieżki Windows w plikach konfiguracyjnych używają slashy: C:/Users/... (unikaj backslashy w YAML/JSON).

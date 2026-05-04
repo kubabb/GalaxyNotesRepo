@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Environment secrets
+.env
+config/.env
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# .opencode folder (ignore by default, un-ignore agents & docs)
+.opencode/
+!.opencode/agents/
+!.opencode/*.md
+
+# Node legacy inside .opencode (just in case)
+.opencode/node_modules/
+.opencode/package-lock.json
+.opencode/package.json
+
+# Logs
+*.log
+logs/
+
+# Galaxy output (generated data)
+data/output/
+*.json
+
+# Local test files
+.test/

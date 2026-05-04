@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GalaxyNotes 3D Cockpit</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #fff; }
+  #canvas-container { width: 100vw; height: 100vh; }
+  #hud {
+    position: fixed; top: 20px; right: 20px; width: 320px;
+    background: rgba(0, 0, 0, 0.85); border: 1px solid #00ffff;
+    border-radius: 8px; padding: 16px; display: none;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+    backdrop-filter: blur(4px);
+    z-index: 10;
+  }
+  #hud h2 { margin: 0 0 10px; font-size: 1.2rem; color: #ff00ff; text-shadow: 0 0 8px #ff00ff; }
+  #hud .row { margin-bottom: 8px; font-size: 0.9rem; line-height: 1.4; }
+  #hud .label { color: #00ffff; font-weight: bold; text-shadow: 0 0 4px #00ffff; }
+  #hud .close {
+    position: absolute; top: 8px; right: 10px; cursor: pointer; color: #00ffff; font-weight: bold;
+  }
+  #info {
+    position: fixed; bottom: 12px; left: 12px; color: #00ffff; font-size: 0.75rem;
+    text-shadow: 0 0 4px #00ffff; pointer-events: none; opacity: 0.8;
+    z-index: 5;
+  }
+  #loading {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    color: #00ffff; font-size: 1.5rem; text-shadow: 0 0 10px #00ffff;
+    z-index: 20; pointer-events: none;
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="canvas-container"></div>
+<div id="loading">Loading galaxy data...</div>
+<div id="hud">
+  <div class="close" id="hud-close">x</div>
+  <h2 id="hud-title">Node</h2>
+  <div class="row"><span class="label">Star Class:</span> <span id="hud-class"></span></div>
+  <div class="row"><span class="label">Energy Level:</span> <span id="hud-energy"></span></div>
+  <div class="row"><span class="label">Brief:</span> <span id="hud-brief"></span></div>
+  <div class="row"><span class="label">Tooltip:</span> <span id="hud-tooltip"></span></div>
+</div>
+<div id="info">Left click + drag to rotate &middot; Scroll to zoom &middot; Click node for HUD</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+const container = document.getElementById('canvas-container');
+const hud = document.getElementById('hud');
+const hudTitle = document.getElementById('hud-title');
+const hudClass = document.getElementById('hud-class');
+const hudEnergy = document.getElementById('hud-energy');
+const hudBrief = document.getElementById('hud-brief');
+const hudTooltip = document.getElementById('hud-tooltip');
+const hudClose = document.getElementById('hud-close');
+const loading = document.getElementById('loading');
+
+// Scene
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+// Camera
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
+camera.position.set(0, 0, 1200);
+
+// Renderer
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+container.appendChild(renderer.domElement);
+
+// Post-processing (Bloom)
+const renderScene = new RenderPass(scene, camera);
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+bloomPass.threshold = 0.1;
+bloomPass.strength = 1.2;
+bloomPass.radius = 0.5;
+
+const composer = new EffectComposer(renderer);
+composer.addPass(renderScene);
+composer.addPass(bloomPass);
+
+// Controls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.zoomSpeed = 1.2;
+
+// Raycaster
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+// Node map for click lookup
+const nodeMeshes = [];
+const nodeDataMap = new Map();
+
+// Data paths
+const GALAXY_URL = '../data/output/galaxy_data.json';
+const META_URL = '../data/output/metadata.json';
+
+async function loadData() {
+  try {
+    const [galaxyRes, metaRes] = await Promise.all([
+      fetch(GALAXY_URL),
+      fetch(META_URL)
+    ]);
+    if (!galaxyRes.ok) throw new Error('Failed to load galaxy_data.json');
+    if (!metaRes.ok) throw new Error('Failed to load metadata.json');
+    const galaxyData = await galaxyRes.json();
+    const metaData = await metaRes.json();
+    buildScene(galaxyData, metaData);
+    loading.style.display = 'none';
+  } catch (err) {
+    loading.textContent = 'Error: ' + err.message;
+    console.error(err);
+  }
+}
+
+function buildScene(galaxyData, metaData) {
+  // Normalize nodes
+  let nodes = [];
+  if (Array.isArray(galaxyData.nodes)) {
+    nodes = galaxyData.nodes;
+  } else if (galaxyData.nodes && typeof galaxyData.nodes === 'object') {
+    nodes = Object.entries(galaxyData.nodes).map(([id, n]) => ({ id, ...n }));
+  }
+
+  const nodeMap = new Map();
+  nodes.forEach(n => {
+    const val = n.val ?? n.degree ?? 1;
+    const color = n.color ?? '#00ffff';
+    const x = n.x ?? 0;
+    const y = n.y ?? 0;
+    const z = n.z ?? 0;
+
+    // Sphere
+    const radius = Math.max(3, Math.min(20, 3 + val * 1.5));
+    const geometry = new THREE.SphereGeometry(radius, 32, 32);
+    const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(color) });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(x, y, z);
+    scene.add(mesh);
+
+    nodeMeshes.push(mesh);
+    nodeMap.set(n.id, mesh);
+    nodeDataMap.set(mesh, { id: n.id, meta: metaData[n.id] || {} });
+  });
+
+  // Edges
+  const edges = galaxyData.edges || [];
+  const lineMaterial = new THREE.LineBasicMaterial({
+    color: 0x00ffff,
+    transparent: true,
+    opacity: 0.35,
+    blending: THREE.AdditiveBlending
+  });
+
+  edges.forEach(e => {
+    const src = nodeMap.get(e.source);
+    const tgt = nodeMap.get(e.target);
+    if (!src || !tgt) return;
+
+    const points = [src.position.clone(), tgt.position.clone()];
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const line = new THREE.Line(geometry, lineMaterial);
+    scene.add(line);
+  });
+
+  // Optional ambient particles
+  const particlesGeo = new THREE.BufferGeometry();
+  const particleCount = 2000;
+  const posArray = new Float32Array(particleCount * 3);
+  for (let i = 0; i < particleCount * 3; i++) {
+    posArray[i] = (Math.random() - 0.5) * 4000;
+  }
+  particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+  const particlesMat = new THREE.PointsMaterial({
+    color: 0xffffff, size: 1.5, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending
+  });
+  const particles = new THREE.Points(particlesGeo, particlesMat);
+  scene.add(particles);
+}
+
+// Click handling
+function onMouseClick(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(nodeMeshes);
+
+  if (intersects.length > 0) {
+    const mesh = intersects[0].object;
+    const info = nodeDataMap.get(mesh);
+    if (info && info.meta) {
+      showHud(info.id, info.meta);
+    }
+  } else {
+    hideHud();
+  }
+}
+
+function showHud(id, meta) {
+  hudTitle.textContent = id;
+  hudClass.textContent = meta.star_class ?? '-';
+  hudEnergy.textContent = meta.energy_level ?? '-';
+  hudBrief.textContent = meta.brief ?? '-';
+  hudTooltip.textContent = meta.tooltip ?? '-';
+  hud.style.display = 'block';
+}
+
+function hideHud() {
+  hud.style.display = 'none';
+}
+
+window.addEventListener('click', onMouseClick);
+hudClose.addEventListener('click', (e) => { e.stopPropagation(); hideHud(); });
+
+// Resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Animation loop
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  composer.render();
+}
+
+animate();
+loadData();
+</script>
+</body>
+</html>
