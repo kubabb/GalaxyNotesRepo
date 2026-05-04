@@ -1,117 +1,270 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Galaxy-Pilot Evolution v2.0 – 3D Cockpit</title>
+<title>Galaxy-Pilot v2.2 – Cockpit Interface</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --bg: #000000; --surface: #131313; --surface-container: #1f1f1f; --surface-high: #2a2a2a;
+    --on-surface: #e2e2e2; --on-surface-variant: #b9cacb;
+    --primary: #e3fdff; --primary-container: #00f3ff; --primary-dim: #00dce6;
+    --secondary: #ffabf3; --secondary-container: #fe00fe;
+    --tertiary: #e8ffda; --tertiary-container: #36fd0f;
+    --error: #ffb4ab; --outline: #849495; --outline-variant: #3a494b;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #000; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #fff; }
-  #canvas-container { width: 100vw; height: 100vh; cursor: crosshair; }
+  body {
+    background: var(--bg); color: var(--on-surface);
+    font-family: 'Inter', sans-serif; overflow: hidden; width: 100vw; height: 100vh;
+  }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  .font-headline { font-family: 'Space Grotesk', sans-serif; }
 
-  /* HUD – górny prawy */
+  /* Scanlines */
+  .scanlines {
+    position: fixed; inset: 0; z-index: 9999; pointer-events: none; mix-blend-mode: overlay;
+    background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.05));
+    background-size: 100% 4px;
+  }
+
+  /* Bloom */
+  .bloom-text { text-shadow: 0 0 10px rgba(0,243,255,0.8), 0 0 20px rgba(0,243,255,0.4); }
+  .bloom-border {
+    box-shadow: 0 0 10px rgba(0,243,255,0.5), inset 0 0 10px rgba(0,243,255,0.2);
+  }
+  .bloom-magenta { box-shadow: 0 0 10px rgba(254,0,254,0.5), inset 0 0 10px rgba(254,0,254,0.2); }
+
+  /* Glitch hover */
+  .glitch-hover:hover {
+    transform: translateX(2px);
+    background-color: rgba(0, 243, 255, 0.2);
+  }
+
+  /* Tech border corners */
+  .tech-border { position: relative; }
+  .tech-border::before, .tech-border::after {
+    content: ''; position: absolute; width: 10px; height: 10px; border: 1px solid var(--primary-dim);
+  }
+  .tech-border::before { top: 0; left: 0; border-right: none; border-bottom: none; }
+  .tech-border::after { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+  /* Landing */
+  #landing {
+    position: fixed; inset: 0; z-index: 100;
+    background: var(--bg); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; transition: opacity 0.8s ease;
+  }
+  #landing.hidden { opacity: 0; pointer-events: none; }
+
+  /* Cockpit */
+  #cockpit { position: fixed; inset: 0; z-index: 10; display: none; }
+  #cockpit.active { display: block; }
+  #cockpit-canvas { position: absolute; inset: 0; z-index: 1; }
+
+  /* Crosshair */
+  #crosshair {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    z-index: 50; pointer-events: none; width: 40px; height: 40px;
+  }
+  .crosshair-line {
+    position: absolute; background: var(--primary-container);
+    box-shadow: 0 0 6px var(--primary-container);
+  }
+  .crosshair-h { width: 20px; height: 1px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+  .crosshair-v { width: 1px; height: 20px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+  .crosshair-dot {
+    width: 4px; height: 4px; background: var(--primary-container);
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    box-shadow: 0 0 8px var(--primary-container);
+  }
+  #crosshair.locked .crosshair-line, #crosshair.locked .crosshair-dot {
+    background: var(--secondary-container);
+    box-shadow: 0 0 8px var(--secondary-container);
+  }
+
+  /* HUD */
   #hud {
-    position: fixed; top: 20px; right: 20px; width: 380px; max-height: 80vh;
-    background: rgba(0, 10, 20, 0.9); border: 1px solid #00ffff;
-    border-radius: 8px; padding: 16px; display: none;
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3), inset 0 0 20px rgba(0, 255, 255, 0.05);
-    backdrop-filter: blur(8px); z-index: 10;
-    overflow-y: auto; animation: hudIn 0.3s ease-out;
+    position: fixed; top: 20px; right: 20px; width: 420px; max-height: 80vh;
+    background: rgba(0, 10, 20, 0.92); border: 1px solid var(--primary-container);
+    z-index: 40; display: none; overflow-y: auto;
+    backdrop-filter: blur(8px);
+    animation: hudIn 0.3s ease-out;
   }
   @keyframes hudIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
-  #hud h2 { margin: 0 0 10px; font-size: 1.2rem; color: #ff00ff; text-shadow: 0 0 8px #ff00ff; }
-  #hud .row { margin-bottom: 8px; font-size: 0.85rem; line-height: 1.4; }
-  #hud .label { color: #00ffff; font-weight: bold; text-shadow: 0 0 4px #00ffff; }
-  #hud .close {
-    position: absolute; top: 8px; right: 10px; cursor: pointer; color: #00ffff; font-weight: bold; font-size: 1.2rem;
-  }
+  #hud h2 { font-family: 'Space Grotesk', sans-serif; color: var(--secondary); text-shadow: 0 0 8px var(--secondary); font-size: 1.1rem; margin-bottom: 8px; }
+  #hud .row { margin-bottom: 6px; font-size: 0.8rem; line-height: 1.4; font-family: 'JetBrains Mono', monospace; }
+  #hud .label { color: var(--primary-container); font-weight: bold; text-shadow: 0 0 4px var(--primary-container); }
   #hud .content-box {
-    background: rgba(0, 255, 255, 0.05); border: 1px solid rgba(0, 255, 255, 0.2);
-    border-radius: 4px; padding: 10px; margin-top: 8px; max-height: 300px; overflow-y: auto;
-    font-size: 0.8rem; white-space: pre-wrap; word-wrap: break-word; color: #ccffff;
+    background: rgba(0,0,0,0.5); border: 1px solid var(--outline-variant);
+    padding: 10px; margin-top: 8px; max-height: 200px; overflow-y: auto;
+    font-size: 0.75rem; white-space: pre-wrap; word-wrap: break-word;
+    color: var(--on-surface-variant); font-family: 'JetBrains Mono', monospace;
   }
   #hud .enter-btn {
-    background: rgba(255, 0, 255, 0.2); border: 1px solid #ff00ff; color: #ff00ff;
-    padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-top: 8px;
-    font-size: 0.8rem; transition: all 0.2s;
+    background: rgba(254, 0, 254, 0.15); border: 1px solid var(--secondary-container);
+    color: var(--secondary); padding: 6px 12px; cursor: pointer; margin-top: 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; letter-spacing: 0.1em;
+    transition: all 0.2s; text-transform: uppercase;
   }
-  #hud .enter-btn:hover { background: rgba(255, 0, 255, 0.4); box-shadow: 0 0 10px #ff00ff; }
-
-  /* Drag&Drop Overlay */
-  #drop-overlay {
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: rgba(0, 255, 255, 0.1); border: 4px dashed #00ffff;
-    display: none; z-index: 100; justify-content: center; align-items: center;
-    font-size: 2rem; color: #00ffff; text-shadow: 0 0 20px #00ffff;
-    pointer-events: none;
+  #hud .enter-btn:hover { background: rgba(254, 0, 254, 0.3); box-shadow: 0 0 10px var(--secondary); }
+  #hud .close-btn {
+    position: absolute; top: 6px; right: 10px; cursor: pointer;
+    color: var(--primary-container); font-weight: bold; font-size: 1.2rem;
   }
-  #drop-overlay.active { display: flex; }
 
-  /* Info bar – dolny lewy */
-  #info {
-    position: fixed; bottom: 12px; left: 12px; color: #00ffff; font-size: 0.75rem;
-    text-shadow: 0 0 4px #00ffff; pointer-events: none; opacity: 0.8; z-index: 5;
-    line-height: 1.6;
+  /* Terminal (fullscreen note reader) */
+  #terminal {
+    position: fixed; inset: 0; z-index: 200; display: none;
+    background: rgba(0, 0, 0, 0.96);
+    flex-direction: column;
+  }
+  #terminal.active { display: flex; }
+  #terminal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 20px; border-bottom: 1px solid var(--primary-dim);
+    background: rgba(0, 10, 20, 0.9);
+  }
+  #terminal-header h2 {
+    font-family: 'Space Grotesk', sans-serif; color: var(--primary);
+    font-size: 1rem; text-shadow: 0 0 8px var(--primary);
+  }
+  #terminal-back {
+    background: transparent; border: 1px solid var(--primary-dim);
+    color: var(--primary-dim); padding: 6px 14px; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+    transition: all 0.2s;
+  }
+  #terminal-back:hover { background: rgba(0, 220, 230, 0.2); box-shadow: 0 0 8px var(--primary-dim); }
+  #terminal-body {
+    flex: 1; padding: 24px 32px; overflow-y: auto;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+    line-height: 1.6; color: var(--on-surface-variant);
+    white-space: pre-wrap; word-wrap: break-word;
+  }
+  #terminal-body .terminal-line {
+    border-left: 2px solid var(--primary-dim); padding-left: 12px; margin-bottom: 8px;
   }
 
   /* Speed indicator */
-  #speed-indicator {
-    position: fixed; bottom: 12px; right: 12px; color: #ff00ff; font-size: 0.9rem;
-    text-shadow: 0 0 8px #ff00ff; z-index: 5; font-family: monospace;
+  #speed-hud {
+    position: fixed; bottom: 16px; right: 16px; z-index: 40;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+    color: var(--secondary); text-shadow: 0 0 8px var(--secondary);
+  }
+
+  /* Info bar */
+  #info-bar {
+    position: fixed; bottom: 16px; left: 16px; z-index: 40;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.65rem;
+    color: var(--primary-dim); opacity: 0.7; line-height: 1.5;
   }
 
   /* Loading */
   #loading {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    color: #00ffff; font-size: 1.5rem; text-shadow: 0 0 20px #00ffff; z-index: 50;
+    color: var(--primary-container); font-size: 1.2rem;
+    text-shadow: 0 0 20px var(--primary-container); z-index: 60;
+    font-family: 'JetBrains Mono', monospace;
   }
 
-  /* Modal import */
-  #import-modal {
-    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    background: rgba(0, 10, 20, 0.95); border: 2px solid #00ffff; border-radius: 12px;
-    padding: 24px; z-index: 200; display: none; min-width: 300px;
-    box-shadow: 0 0 40px rgba(0, 255, 255, 0.3);
+  /* Drag overlay */
+  #drag-overlay {
+    position: fixed; inset: 0; z-index: 300; display: none;
+    background: rgba(0, 243, 255, 0.08); border: 3px dashed var(--primary-container);
+    align-items: center; justify-content: center; pointer-events: none;
+    font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem;
+    color: var(--primary-container); text-shadow: 0 0 20px var(--primary-container);
   }
-  #import-modal h3 { color: #ff00ff; margin-bottom: 12px; text-shadow: 0 0 8px #ff00ff; }
-  #import-modal button {
-    background: rgba(0, 255, 255, 0.2); border: 1px solid #00ffff; color: #00ffff;
-    padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 8px; margin-top: 12px;
-  }
-  #import-modal button:hover { background: rgba(0, 255, 255, 0.4); }
+  #drag-overlay.active { display: flex; }
 </style>
 </head>
 <body>
 
-<div id="canvas-container"></div>
-<div id="loading">🚀 Inicjalizacja kokpitu Galaxy-Pilot v2.0...</div>
-<div id="drop-overlay">📁 UPUSC FOLDER/PLIKI TUTAJ</div>
+<!-- Scanlines -->
+<div class="scanlines"></div>
 
-<div id="hud">
-  <span class="close" onclick="closeHud()">×</span>
-  <h2 id="hud-title">GWiazDA</h2>
-  <div class="row"><span class="label">Klasa:</span> <span id="hud-class">-</span></div>
-  <div class="row"><span class="label">Energia:</span> <span id="hud-energy">-</span></div>
-  <div class="row"><span class="label">Brief:</span> <span id="hud-brief">-</span></div>
-  <button class="enter-btn" onclick="expandContent()">⬇ WEJDZ W SZCZEGOLY</button>
-  <div class="content-box" id="hud-content" style="display:none;"></div>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- LANDING / ONBOARDING -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="landing">
+  <div class="text-center max-w-3xl px-6">
+    <div class="inline-block px-4 py-1 border border-[#00f3ff]/30 bg-[#00f3ff]/10 text-[#00f3ff] font-mono text-[11px] tracking-[0.2em] uppercase mb-6 tech-border bloom-border">
+      SYSTEM ONLINE // READY
+    </div>
+    <h1 class="font-headline text-[42px] font-bold text-[#00f3ff] bloom-text mb-4 uppercase leading-tight tracking-tight">
+      GALAXY-PILOT v2.2
+    </h1>
+    <p class="font-mono text-sm text-[#b9cacb] max-w-xl mx-auto mb-10 leading-relaxed">
+      Twój Obsidian jako interaktywna galaktyka 3D. Eksploruj wiedzę z prędkością światła.
+      WASD – lot. Mysz – obrót. Shift – warp. Click – skanuj gwiazdę.
+    </p>
+    <button id="btn-init" class="px-10 py-4 border border-[#00f3ff] text-[#00f3ff] font-headline text-sm bg-black/50 glitch-hover bloom-border tech-border uppercase tracking-[0.15em] transition-all">
+      [ INICJUJ SEKWENCJĘ LOTU ]
+    </button>
+  </div>
+  <div class="fixed bottom-6 right-8 flex gap-4 items-center z-50">
+    <div class="font-mono text-[8px] uppercase tracking-widest text-cyan-500/50">
+      CORE_OS v2.2.0 // NO_USER_LEFT_BEHIND
+    </div>
+  </div>
 </div>
 
-<div id="import-modal">
-  <h3>📡 Nowy sektor wykryty</h3>
-  <p id="import-text">Znaleziono plików do zaimportowania.</p>
-  <button onclick="confirmImport()">✅ Importuj</button>
-  <button onclick="cancelImport()">❌ Anuluj</button>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- COCKPIT 3D -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="cockpit">
+  <canvas id="cockpit-canvas"></canvas>
+
+  <!-- Crosshair -->
+  <div id="crosshair">
+    <div class="crosshair-line crosshair-h"></div>
+    <div class="crosshair-line crosshair-v"></div>
+    <div class="crosshair-dot"></div>
+  </div>
+
+  <!-- HUD Panel -->
+  <div id="hud" class="tech-border bloom-border p-4">
+    <span class="close-btn" onclick="closeHud()">×</span>
+    <h2 id="hud-title">GWIAZDA</h2>
+    <div class="row"><span class="label">KLASA:</span> <span id="hud-class">-</span></div>
+    <div class="row"><span class="label">ENERGIA:</span> <span id="hud-energy">-</span></div>
+    <div class="row"><span class="label">BRIEF:</span> <span id="hud-brief">-</span></div>
+    <div class="row"><span class="label">PLIK:</span> <span id="hud-file">-</span></div>
+    <button class="enter-btn" onclick="openTerminal()">⬇ WEJDŹ W SZCZEGÓŁY</button>
+    <div class="content-box" id="hud-content" style="display:none;"></div>
+  </div>
+
+  <!-- Terminal (fullscreen) -->
+  <div id="terminal">
+    <div id="terminal-header">
+      <h2 id="terminal-title">TERMINAL // NOTATKA</h2>
+      <button id="terminal-back" onclick="closeTerminal()">[ ← POWRÓT DO KOKPITU ]</button>
+    </div>
+    <div id="terminal-body"></div>
+  </div>
+
+  <!-- Speed -->
+  <div id="speed-hud">SPEED: 1.0x</div>
+
+  <!-- Info -->
+  <div id="info-bar">
+    WASD – Lot | Mysz – Obrót | Shift – Warp | Space – Zoom<br>
+    Click – Skanuj | Q-Up | E-Down | Scroll – Prędkość
+  </div>
 </div>
 
-<div id="info">
-  🎮 <b>WASD</b> – Lot | <b>Mysz</b> – Obrót | <b>Shift</b> – Hyperjump do gwiazdy<br>
-  <b>Space</b> – System Zoom (widok ogolny) | <b>Scroll</b> – Predkosc | <b>Click</b> – Skanuj gwiazde<br>
-  📁 <b>Drag&Drop</b> folderu – import nowego sektora
-</div>
+<!-- Drag overlay -->
+<div id="drag-overlay">📁 UPUSC FOLDER / PLIKI</div>
 
-<div id="speed-indicator">SPEED: 1.0x</div>
+<!-- Loading -->
+<div id="loading">🚀 Inicjalizacja kokpitu...</div>
 
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- THREE.JS COCKPIT LOGIC -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <script type="importmap">
 {
   "imports": {
@@ -123,424 +276,389 @@
 
 <script type="module">
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
-// ═══════════════════════════════════════════════════════════════
-// KONFIGURACJA
-// ═══════════════════════════════════════════════════════════════
-const CONFIG = {
-  starSize: 2.5,
-  starColor: 0x00ffff,
-  lineColor: 0x00aaff,
-  lineOpacity: 0.25,
-  bloomStrength: 1.2,
-  bloomRadius: 0.5,
-  bloomThreshold: 0,
-  hyperjumpSpeed: 0.15,
-  normalSpeed: 0.8,
-  zoomSpeed: 0.05,
-  hudDistance: 80,
-  maxSpeed: 5.0,
-  minSpeed: 0.1
+// ─── CONFIG ───
+const CFG = {
+  starSize: 2.0, starGlow: 12,
+  lineColor: 0x00aaff, lineOpacity: 0.2,
+  normalSpeed: 1.0, maxSpeed: 4.0, minSpeed: 0.2,
+  warpSpeed: 8.0, warpFOV: 100, normalFOV: 60,
+  hudDist: 60, crosshairDist: 80,
 };
 
-// ═══════════════════════════════════════════════════════════════
-// STAN KOKPITU
-// ═══════════════════════════════════════════════════════════════
-const state = {
-  keys: {}, mouse: { x: 0, y: 0, down: false },
-  speed: CONFIG.normalSpeed,
-  targetStar: null,
-  isHyperjump: false,
-  isZoomOut: false,
-  galaxyCenter: new THREE.Vector3(0, 0, 0),
-  velocity: new THREE.Vector3(0, 0, 0),
-  yaw: 0, pitch: 0,
-  droppedFiles: [],
-  selectedNode: null
+// ─── STATE ───
+const S = {
+  keys: {}, mouseDown: false, mx: 0, my: 0,
+  speed: CFG.normalSpeed, targetStar: null,
+  isWarp: false, isZoom: false, shipTilt: 0,
+  yaw: -Math.PI/2, pitch: 0.8,
+  nodes: [], edges: [], nodeMeshes: [],
+  meta: {}, selected: null, lockedTarget: null,
 };
 
-// ═══════════════════════════════════════════════════════════════
-// SCENA
-// ═══════════════════════════════════════════════════════════════
-const container = document.getElementById('canvas-container');
+// ─── SCENE ───
+const canvas = document.getElementById('cockpit-canvas');
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x000000, 0.0008);
+scene.fog = new THREE.FogExp2(0x000000, 0.001);
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
-camera.position.set(0, 200, 600);
+const camera = new THREE.PerspectiveCamera(CFG.normalFOV, window.innerWidth/window.innerHeight, 0.1, 5000);
+camera.position.set(0, 300, 400);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.toneMapping = THREE.ReinhardToneMapping;
-container.appendChild(renderer.domElement);
 
-// Postprocessing – Bloom
-const composer = new EffectComposer(renderer);
-const renderPass = new RenderPass(scene, camera);
-composer.addPass(renderPass);
-const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), CONFIG.bloomStrength, CONFIG.bloomRadius, CONFIG.bloomThreshold);
-composer.addPass(bloomPass);
+// ─── SHIP MODEL (Wireframe Neon) ───
+const shipGroup = new THREE.Group();
+const shipGeo = new THREE.BoxGeometry(4, 1.5, 8);
+const shipMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff, wireframe: true });
+shipGroup.add(new THREE.Mesh(shipGeo, shipMat));
+// Cockpit
+const cockpitGeo = new THREE.BoxGeometry(2, 1, 3);
+const cockpitMat = new THREE.MeshBasicMaterial({ color: 0x00dce6, wireframe: true });
+const cockpitMesh = new THREE.Mesh(cockpitGeo, cockpitMat);
+cockpitMesh.position.set(0, 0.5, -1);
+shipGroup.add(cockpitMesh);
+// Wings
+const wingGeo = new THREE.BoxGeometry(8, 0.2, 2);
+const wingMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff, wireframe: true });
+const wingL = new THREE.Mesh(wingGeo, wingMat);
+wingL.position.set(-4, 0, 2);
+shipGroup.add(wingL);
+const wingR = new THREE.Mesh(wingGeo, wingMat);
+wingR.position.set(4, 0, 2);
+shipGroup.add(wingR);
+// Engine glow
+const glowGeo = new THREE.SphereGeometry(0.8, 8, 8);
+const glowMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff, transparent: true, opacity: 0.6 });
+shipGroup.add(new THREE.Mesh(glowGeo, glowMat));
+shipGroup.position.set(0, -5, -15);
+scene.add(shipGroup);
 
-// Kontrola (fallback – główne sterowanie to WASD+custom)
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-controls.enablePan = false;
-controls.enabled = false; // Domyślnie wyłączone – WASD takeover
+// ─── STARFIELD BACKGROUND ───
+const bgGeo = new THREE.BufferGeometry();
+const bgCount = 5000;
+const bgPos = new Float32Array(bgCount * 3);
+for(let i=0;i<bgCount*3;i++) bgPos[i]=(Math.random()-0.5)*6000;
+bgGeo.setAttribute('position', new THREE.BufferAttribute(bgPos, 3));
+const bgMat = new THREE.PointsMaterial({ color: 0x222222, size: 1.2, transparent: true, opacity: 0.5 });
+scene.add(new THREE.Points(bgGeo, bgMat));
 
-// ═══════════════════════════════════════════════════════════════
-// TŁO – GWIAZDY
-// ═══════════════════════════════════════════════════════════════
-const starGeo = new THREE.BufferGeometry();
-const starCount = 3000;
-const starPos = new Float32Array(starCount * 3);
-for (let i = 0; i < starCount * 3; i++) {
-  starPos[i] = (Math.random() - 0.5) * 4000;
-}
-starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-const starMat = new THREE.PointsMaterial({ color: 0x444444, size: 1.5, transparent: true, opacity: 0.6 });
-scene.add(new THREE.Points(starGeo, starMat));
-
-// Światło ambient
+// ─── LIGHTING ───
 scene.add(new THREE.AmbientLight(0x111111));
 
-// ═══════════════════════════════════════════════════════════════
-// ŁADOWANIE DANYCH GALAKTYKI
-// ═══════════════════════════════════════════════════════════════
-const GALAXY_URL = '../data/output/galaxy_data.json';
-const META_URL = '../data/output/metadata.json';
-
+// ─── LOAD DATA ───
 let galaxyData = null;
-let metaData = {};
-let nodes = [];
-let edges = [];
-let nodeMeshes = [];
-let nodeDataMap = new Map();
-let raycaster = new THREE.Raycaster();
-let mouseVector = new THREE.Vector2();
 
-async function loadData() {
+async function loadGalaxy() {
   try {
-    const [gRes, mRes] = await Promise.all([fetch(GALAXY_URL), fetch(META_URL)]);
-    if (!gRes.ok) throw new Error('Failed to load galaxy_data.json');
-    if (!mRes.ok) throw new Error('Failed to load metadata.json');
+    const [gRes, mRes] = await Promise.all([
+      fetch('../data/output/galaxy_data.json'),
+      fetch('../data/output/metadata.json')
+    ]);
     galaxyData = await gRes.json();
-    metaData = await mRes.json();
-    buildScene();
+    S.meta = await mRes.json();
+    buildGalaxy();
     document.getElementById('loading').style.display = 'none';
-  } catch (e) {
-    document.getElementById('loading').innerHTML = `❌ Blad ladowania: ${e.message}<br><small>Sprawdz czy serwer jest uruchomiony (python -m http.server)</small>`;
-    console.error(e);
+  } catch(e) {
+    document.getElementById('loading').innerHTML = `❌ Błąd: ${e.message}<br><small>Uruchom: python -m http.server</small>`;
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// BUDOWA SCENY
-// ═══════════════════════════════════════════════════════════════
-function buildScene() {
+function buildGalaxy() {
   const nodeDict = galaxyData.nodes || galaxyData;
   const edgeList = galaxyData.edges || [];
 
-  // Nodes
   Object.entries(nodeDict).forEach(([id, n]) => {
-    const geometry = new THREE.SphereGeometry(CONFIG.starSize * (n.val || 1) * 0.5, 16, 16);
-    const color = n.color || '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
-    const material = new THREE.MeshBasicMaterial({ color: color });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(n.x || 0, n.y || 0, n.z || 0);
+    const size = CFG.starSize * Math.min(n.val||1, 5) * 0.4;
+    const geo = new THREE.SphereGeometry(size, 12, 12);
+    const color = n.color || 0x00f3ff;
+    const mat = new THREE.MeshBasicMaterial({ color });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(n.x||0, n.y||0, n.z||0);
     scene.add(mesh);
 
-    // Glow sprite
-    const spriteMat = new THREE.SpriteMaterial({
-      color: color, transparent: true, opacity: 0.4,
-      blending: THREE.AdditiveBlending
+    // Glow
+    const sprMat = new THREE.SpriteMaterial({
+      color, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending
     });
-    const sprite = new THREE.Sprite(spriteMat);
-    sprite.scale.set(15, 15, 1);
+    const sprite = new THREE.Sprite(sprMat);
+    sprite.scale.set(CFG.starGlow, CFG.starGlow, 1);
     mesh.add(sprite);
 
-    nodeMeshes.push(mesh);
-    const meta = metaData[id] || {};
-    nodeDataMap.set(mesh, { id, meta, data: n });
-    nodes.push({ id, mesh, ...n });
+    S.nodeMeshes.push(mesh);
+    S.nodes.push({ id, mesh, x:n.x, y:n.y, z:n.z, val:n.val, color });
   });
 
-  // Edges
   edgeList.forEach(e => {
-    const src = nodes.find(n => n.id === e.source);
-    const tgt = nodes.find(n => n.id === e.target);
-    if (src && tgt) {
-      const pts = [src.mesh.position.clone(), tgt.mesh.position.clone()];
+    const s = S.nodes.find(n=>n.id===e.source);
+    const t = S.nodes.find(n=>n.id===e.target);
+    if(s && t) {
+      const pts = [s.mesh.position.clone(), t.mesh.position.clone()];
       const geo = new THREE.BufferGeometry().setFromPoints(pts);
-      const mat = new THREE.LineBasicMaterial({ color: CONFIG.lineColor, transparent: true, opacity: CONFIG.lineOpacity, blending: THREE.AdditiveBlending });
+      const mat = new THREE.LineBasicMaterial({ color: CFG.lineColor, transparent: true, opacity: CFG.lineOpacity, blending: THREE.AdditiveBlending });
       scene.add(new THREE.Line(geo, mat));
     }
   });
 
-  // Oblicz centrum galaktyki
+  // Center camera
   const box = new THREE.Box3().setFromObject(scene);
-  box.getCenter(state.galaxyCenter);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  S.galaxyCenter = center;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// STEROWANIE STATKIEM (WASD + MYSZ)
-// ═══════════════════════════════════════════════════════════════
-function setupControls() {
-  // Klawiatura
-  window.addEventListener('keydown', e => {
-    state.keys[e.code] = true;
-    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') hyperjump();
-    if (e.code === 'Space') systemZoom();
-    if (e.code === 'KeyC') closeHud();
-  });
-  window.addEventListener('keyup', e => state.keys[e.code] = false);
+// ─── CONTROLS ───
+window.addEventListener('keydown', e => {
+  S.keys[e.code] = true;
+  if(e.code==='ShiftLeft'||e.code==='ShiftRight') startWarp();
+  if(e.code==='Space') startZoom();
+  if(e.code==='KeyC') closeHud();
+});
+window.addEventListener('keyup', e => S.keys[e.code]=false);
 
-  // Mysz – obrót (tylko gdy kliknięty LPM)
-  window.addEventListener('mousemove', e => {
-    if (state.mouse.down) {
-      const dx = e.movementX * 0.002;
-      const dy = e.movementY * 0.002;
-      state.yaw -= dx;
-      state.pitch -= dy;
-      state.pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, state.pitch));
-    }
-    state.mouse.x = e.clientX;
-    state.mouse.y = e.clientY;
-  });
-  window.addEventListener('mousedown', e => { if (e.button === 0) state.mouse.down = true; });
-  window.addEventListener('mouseup', e => { if (e.button === 0) state.mouse.down = false; });
+window.addEventListener('mousemove', e => {
+  if(S.mouseDown) {
+    S.yaw -= e.movementX * 0.003;
+    S.pitch -= e.movementY * 0.003;
+    S.pitch = Math.max(-1.4, Math.min(1.4, S.pitch));
+  }
+  S.mx = e.clientX; S.my = e.clientY;
+});
+window.addEventListener('mousedown', e => { if(e.button===0) S.mouseDown=true; });
+window.addEventListener('mouseup', e => { if(e.button===0) S.mouseDown=false; });
+window.addEventListener('wheel', e => {
+  S.speed += e.deltaY * -0.002;
+  S.speed = Math.max(CFG.minSpeed, Math.min(CFG.maxSpeed, S.speed));
+  updateSpeedHUD();
+});
 
-  // Scroll – prędkość
-  window.addEventListener('wheel', e => {
-    state.speed += e.deltaY * -0.001;
-    state.speed = Math.max(CONFIG.minSpeed, Math.min(CONFIG.maxSpeed, state.speed));
-    updateSpeedIndicator();
-  });
+// Click to scan
+const raycaster = new THREE.Raycaster();
+const mouseVec = new THREE.Vector2();
+window.addEventListener('click', e => {
+  if(e.target.closest('#hud') || e.target.closest('#terminal') || !document.getElementById('cockpit').classList.contains('active')) return;
+  mouseVec.x = (e.clientX/window.innerWidth)*2-1;
+  mouseVec.y = -(e.clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(mouseVec, camera);
+  const hits = raycaster.intersectObjects(S.nodeMeshes);
+  if(hits.length>0) {
+    const node = S.nodes.find(n=>n.mesh===hits[0].object);
+    if(node) openHud(node);
+  }
+});
 
-  // Click – skanowanie gwiazdy
-  window.addEventListener('click', e => {
-    if (e.target.closest('#hud') || e.target.closest('#import-modal')) return;
-    mouseVector.x = (e.clientX / window.innerWidth) * 2 - 1;
-    mouseVector.y = -(e.clientY / window.innerHeight) * 2 + 1;
-    raycaster.setFromCamera(mouseVector, camera);
-    const hits = raycaster.intersectObjects(nodeMeshes);
-    if (hits.length > 0) {
-      const data = nodeDataMap.get(hits[0].object);
-      if (data) openHud(data);
-    }
-  });
-}
-
-function updateSpeedIndicator() {
-  document.getElementById('speed-indicator').textContent = `SPEED: ${state.speed.toFixed(1)}x`;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// FIZYKA LOTU
-// ═══════════════════════════════════════════════════════════════
+// ─── FLIGHT PHYSICS ───
 function updateFlight() {
-  if (state.isHyperjump && state.targetStar) {
-    // Hyperjump – płynny dolot do gwiazdy
-    const target = state.targetStar.mesh.position;
-    const dir = new THREE.Vector3().subVectors(target, camera.position);
+  const euler = new THREE.Euler(S.pitch, S.yaw, 0, 'YXZ');
+  camera.quaternion.setFromEuler(euler);
+
+  if(S.isWarp && S.lockedTarget) {
+    const t = S.lockedTarget.mesh.position;
+    const dir = new THREE.Vector3().subVectors(t, camera.position);
     const dist = dir.length();
-    if (dist < CONFIG.hudDistance) {
-      state.isHyperjump = false;
-      state.speed = CONFIG.normalSpeed;
-      openHud(state.targetStar);
-      return;
-    }
+    if(dist < CFG.hudDist) { endWarp(); openHud(S.lockedTarget); return; }
     dir.normalize();
-    camera.position.add(dir.multiplyScalar(dist * CONFIG.hyperjumpSpeed));
-    camera.lookAt(target);
+    camera.position.add(dir.multiplyScalar(dist * 0.08));
+    // Ship tilt toward target
+    const localTarget = shipGroup.worldToLocal(t.clone());
+    S.shipTilt = localTarget.x * 0.05;
     return;
   }
 
-  if (state.isZoomOut) {
-    // System Zoom – powrót do widoku ogólnego
-    const dir = new THREE.Vector3().subVectors(state.galaxyCenter, camera.position);
-    const dist = dir.length();
-    if (dist > 800) {
-      state.isZoomOut = false;
-      state.speed = CONFIG.normalSpeed;
-      return;
-    }
+  if(S.isZoom) {
+    const dir = new THREE.Vector3().subVectors(S.galaxyCenter, camera.position);
+    if(dir.length() > 600) { endZoom(); return; }
     dir.normalize();
-    camera.position.sub(dir.multiplyScalar(20));
-    camera.lookAt(state.galaxyCenter);
+    camera.position.sub(dir.multiplyScalar(15));
     return;
   }
 
-  // Swobodny lot WASD
-  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-
-  const vel = new THREE.Vector3(0, 0, 0);
-  if (state.keys['KeyW']) vel.add(forward);
-  if (state.keys['KeyS']) vel.sub(forward);
-  if (state.keys['KeyA']) vel.sub(right);
-  if (state.keys['KeyD']) vel.add(right);
-  if (state.keys['KeyQ']) vel.add(up);
-  if (state.keys['KeyE']) vel.sub(up);
-
-  if (vel.length() > 0) {
-    vel.normalize().multiplyScalar(state.speed);
+  // Free flight WASD
+  const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+  const right = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+  const up = new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion);
+  const vel = new THREE.Vector3();
+  if(S.keys['KeyW']) vel.add(fwd);
+  if(S.keys['KeyS']) vel.sub(fwd);
+  if(S.keys['KeyA']) vel.sub(right);
+  if(S.keys['KeyD']) vel.add(right);
+  if(S.keys['KeyQ']) vel.add(up);
+  if(S.keys['KeyE']) vel.sub(up);
+  if(vel.length()>0) {
+    vel.normalize().multiplyScalar(S.speed);
     camera.position.add(vel);
   }
 
-  // Obrót myszą (pitch/yaw)
-  const euler = new THREE.Euler(state.pitch, state.yaw, 0, 'YXZ');
-  camera.quaternion.setFromEuler(euler);
+  // Ship tilt based on A/D
+  let targetTilt = 0;
+  if(S.keys['KeyA']) targetTilt = 0.3;
+  if(S.keys['KeyD']) targetTilt = -0.3;
+  S.shipTilt += (targetTilt - S.shipTilt) * 0.1;
+
+  // Crosshair target lock
+  updateCrosshair();
 }
 
-// ═══════════════════════════════════════════════════════════════
-// HYPERJUMP & SYSTEM ZOOM
-// ═══════════════════════════════════════════════════════════════
-function hyperjump() {
-  if (!state.selectedNode) return;
-  state.isHyperjump = true;
-  state.isZoomOut = false;
-  state.targetStar = state.selectedNode;
-  state.speed = CONFIG.maxSpeed * 2;
-  updateSpeedIndicator();
+function updateCrosshair() {
+  const ch = document.getElementById('crosshair');
+  // Cast ray from center of screen
+  raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+  const hits = raycaster.intersectObjects(S.nodeMeshes);
+  if(hits.length > 0 && hits[0].distance < CFG.crosshairDist) {
+    ch.classList.add('locked');
+    const node = S.nodes.find(n=>n.mesh===hits[0].object);
+    if(node) S.lockedTarget = node;
+  } else {
+    ch.classList.remove('locked');
+    S.lockedTarget = null;
+  }
 }
 
-function systemZoom() {
-  state.isZoomOut = true;
-  state.isHyperjump = false;
-  state.speed = CONFIG.maxSpeed;
-  updateSpeedIndicator();
+// ─── WARP & ZOOM ───
+function startWarp() {
+  if(!S.lockedTarget) return;
+  S.isWarp = true; S.isZoom = false;
+  S.speed = CFG.warpSpeed;
+  // Animate FOV
+  animateFOV(CFG.warpFOV, 300);
+  updateSpeedHUD();
+}
+function endWarp() {
+  S.isWarp = false; S.speed = CFG.normalSpeed;
+  animateFOV(CFG.normalFOV, 500);
+  updateSpeedHUD();
+}
+function startZoom() {
+  S.isZoom = true; S.isWarp = false;
+  S.speed = CFG.maxSpeed;
+  updateSpeedHUD();
+}
+function endZoom() {
+  S.isZoom = false; S.speed = CFG.normalSpeed;
+  updateSpeedHUD();
+}
+function animateFOV(targetFOV, duration) {
+  const startFOV = camera.fov;
+  const startTime = performance.now();
+  function step() {
+    const t = Math.min((performance.now()-startTime)/duration, 1);
+    camera.fov = startFOV + (targetFOV-startFOV)*t;
+    camera.updateProjectionMatrix();
+    if(t<1) requestAnimationFrame(step);
+  }
+  step();
 }
 
-// ═══════════════════════════════════════════════════════════════
-// HUD
-// ═══════════════════════════════════════════════════════════════
-window.openHud = function(data) {
-  state.selectedNode = data;
+function updateSpeedHUD() {
+  const el = document.getElementById('speed-hud');
+  const mode = S.isWarp ? 'WARP' : (S.isZoom ? 'ZOOM' : 'CRUISING');
+  el.textContent = `${mode} | SPEED: ${S.speed.toFixed(1)}x`;
+  el.style.color = S.isWarp ? 'var(--secondary-container)' : 'var(--secondary)';
+}
+
+// ─── HUD ───
+window.openHud = function(node) {
+  S.selected = node;
+  const meta = S.meta[node.id] || {};
   const hud = document.getElementById('hud');
-  const meta = data.meta || {};
-  document.getElementById('hud-title').textContent = data.id;
-  document.getElementById('hud-class').textContent = meta.star_class || 'Standard';
+  document.getElementById('hud-title').textContent = node.id;
+  document.getElementById('hud-class').textContent = meta.star_class || 'Standardowy sektor';
   document.getElementById('hud-energy').textContent = meta.energy_level || 'Srednia';
   document.getElementById('hud-brief').textContent = meta.brief || meta.tooltip || 'Brak danych';
+  document.getElementById('hud-file').textContent = meta.file || node.id;
   document.getElementById('hud-content').style.display = 'none';
-  document.getElementById('hud-content').textContent = '';
   hud.style.display = 'block';
 };
-
 window.closeHud = function() {
   document.getElementById('hud').style.display = 'none';
-  state.selectedNode = null;
+  S.selected = null;
 };
-
 window.expandContent = function() {
   const box = document.getElementById('hud-content');
-  if (box.style.display === 'block') {
-    box.style.display = 'none';
-    return;
-  }
-  if (state.selectedNode && state.selectedNode.meta) {
-    const content = JSON.stringify(state.selectedNode.meta, null, 2);
-    box.textContent = content;
+  if(box.style.display==='block') { box.style.display='none'; return; }
+  const meta = S.selected ? S.meta[S.selected.id] : null;
+  if(meta && meta.content) {
+    box.textContent = meta.content.substring(0, 800) + (meta.content.length>800?'...':'');
     box.style.display = 'block';
   }
 };
 
-// ═══════════════════════════════════════════════════════════════
-// DRAG & DROP IMPORTER
-// ═══════════════════════════════════════════════════════════════
-function setupDragDrop() {
-  const overlay = document.getElementById('drop-overlay');
-
-  window.addEventListener('dragenter', e => { e.preventDefault(); overlay.classList.add('active'); });
-  window.addEventListener('dragover', e => e.preventDefault());
-  window.addEventListener('dragleave', e => { if (e.relatedTarget === null) overlay.classList.remove('active'); });
-  window.addEventListener('drop', e => {
-    e.preventDefault();
-    overlay.classList.remove('active');
-    const items = e.dataTransfer.items;
-    state.droppedFiles = [];
-
-    if (items) {
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i].webkitGetAsEntry();
-        if (item) traverseFileTree(item, '');
-      }
-    }
-    if (state.droppedFiles.length > 0) {
-      showImportModal(state.droppedFiles.length);
-    }
+// ─── TERMINAL ───
+window.openTerminal = function() {
+  const meta = S.selected ? S.meta[S.selected.id] : null;
+  if(!meta) return;
+  document.getElementById('terminal-title').textContent = `TERMINAL // ${S.selected.id}`;
+  const body = document.getElementById('terminal-body');
+  body.innerHTML = '';
+  // Meta header
+  const header = document.createElement('div');
+  header.className = 'mb-4 pb-4 border-b border-[#00dce6]/30';
+  header.innerHTML = `
+    <div class="font-mono text-[11px] text-[#00f3ff] tracking-widest mb-2">=== DANE TAKTYCZNE ===</div>
+    <div class="font-mono text-xs text-[#b9cacb]">KLASA: ${meta.star_class||'-'}</div>
+    <div class="font-mono text-xs text-[#b9cacb]">ENERGIA: ${meta.energy_level||'-'}</div>
+    <div class="font-mono text-xs text-[#b9cacb]">PLIK: ${meta.file||'-'}</div>
+  `;
+  body.appendChild(header);
+  // Content
+  const content = meta.content || meta.tooltip || 'Brak danych tekstowych.';
+  const lines = content.split('\n');
+  lines.forEach(line => {
+    const div = document.createElement('div');
+    div.className = 'terminal-line';
+    div.textContent = line || ' ';
+    body.appendChild(div);
   });
-}
-
-function traverseFileTree(item, path) {
-  if (item.isFile) {
-    item.file(file => {
-      const ext = file.name.split('.').pop().toLowerCase();
-      if (['md', 'py', 'js', 'txt', 'json', 'html', 'css'].includes(ext)) {
-        state.droppedFiles.push({ name: file.name, path: path + file.name, file });
-      }
-    });
-  } else if (item.isDirectory) {
-    const dirReader = item.createReader();
-    dirReader.readEntries(entries => {
-      entries.forEach(entry => traverseFileTree(entry, path + item.name + '/'));
-    });
-  }
-}
-
-function showImportModal(count) {
-  document.getElementById('import-text').textContent = `Znaleziono ${count} plików do zaimportowania jako nowy sektor.`;
-  document.getElementById('import-modal').style.display = 'block';
-}
-
-window.confirmImport = function() {
-  document.getElementById('import-modal').style.display = 'none';
-  // Zapisz w localStorage i przeładuj
-  localStorage.setItem('galaxy_pending_import', JSON.stringify(state.droppedFiles.map(f => f.name)));
-  alert('Import zapisany. Uruchom pipeline (python main.py) aby przetworzyc nowe pliki.');
+  document.getElementById('terminal').classList.add('active');
+  // Lock flight
+  S.keys = {};
+};
+window.closeTerminal = function() {
+  document.getElementById('terminal').classList.remove('active');
 };
 
-window.cancelImport = function() {
-  document.getElementById('import-modal').style.display = 'none';
-  state.droppedFiles = [];
-};
+// ─── LANDING TRANSITION ───
+document.getElementById('btn-init').addEventListener('click', () => {
+  document.getElementById('landing').classList.add('hidden');
+  setTimeout(() => {
+    document.getElementById('landing').style.display = 'none';
+    document.getElementById('cockpit').classList.add('active');
+    loadGalaxy();
+  }, 800);
+});
 
-// ═══════════════════════════════════════════════════════════════
-// PĘTLA GŁÓWNA
-// ═══════════════════════════════════════════════════════════════
+// ─── DRAG & DROP ───
+const dragOverlay = document.getElementById('drag-overlay');
+window.addEventListener('dragenter', e => { e.preventDefault(); dragOverlay.classList.add('active'); });
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('dragleave', e => { if(e.relatedTarget===null) dragOverlay.classList.remove('active'); });
+window.addEventListener('drop', e => {
+  e.preventDefault(); dragOverlay.classList.remove('active');
+  alert('Import zapisany. Uruchom: python main.py aby przetworzyc nowe pliki.');
+});
+
+// ─── ANIMATE ───
 function animate() {
   requestAnimationFrame(animate);
   updateFlight();
-
-  // Animacja gwiazd (subtelny puls)
-  nodeMeshes.forEach((mesh, i) => {
-    const scale = 1 + Math.sin(Date.now() * 0.001 + i) * 0.1;
-    mesh.scale.setScalar(scale);
+  // Ship animation
+  shipGroup.rotation.z = S.shipTilt;
+  shipGroup.position.y = -5 + Math.sin(Date.now()*0.003)*0.5;
+  // Star pulse
+  S.nodeMeshes.forEach((m,i) => {
+    const s = 1 + Math.sin(Date.now()*0.002 + i)*0.08;
+    m.scale.setScalar(s);
   });
-
-  composer.render();
+  renderer.render(scene, camera);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// START
-// ═══════════════════════════════════════════════════════════════
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.aspect = window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-setupControls();
-setupDragDrop();
-loadData();
 animate();
 </script>
 </body>

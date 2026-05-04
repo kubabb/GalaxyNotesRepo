@@ -39,7 +39,7 @@ FRONTMATTER_RE = re.compile(r"^---\s*\n.*?\n---\s*\n", re.DOTALL)
 MAX_RETRIES = 3
 BACKOFF_DELAYS = [2, 4, 8]  # seconds
 MAX_CONCURRENT = 3
-API_ENABLED = OPENROUTER_API_KEY and "tutaj" not in OPENROUTER_API_KEY.lower() and len(OPENROUTER_API_KEY) > 20
+API_ENABLED = False  # WATCHMAN: API rate limited – LOCAL MODE enforced
 
 
 def clean_markdown(text: str) -> str:
@@ -75,16 +75,16 @@ def extract_first_sentence(text: str) -> str:
 def star_class_from_name(name: str, text_len: int) -> str:
     low = name.lower()
     if "bug" in low or "error" in low:
-        return "Krytyczny"
+        return "Krytyczna anomalia"
     if "plan" in low or "adr" in low or "feature" in low:
-        return "Projekt aktywny"
+        return "Aktywny sektor"
     if "index" in low or "log" in low:
-        return "Archiwum"
+        return "Archiwum danych"
     if text_len > 5000:
-        return "Projekt aktywny"
+        return "Aktywny sektor"
     if text_len < 500:
-        return "Standard"
-    return "Standard"
+        return "Standardowy sektor"
+    return "Standardowy sektor"
 
 
 def energy_level_from_size(text_len: int, link_count: int) -> str:
@@ -99,16 +99,32 @@ def energy_level_from_size(text_len: int, link_count: int) -> str:
 
 
 def brief_from_text_local(text: str, name: str) -> str:
-    """Generuje dokładnie 10 wyrazów jako brief – lokalnie."""
+    """Generuje brief w stylu raportu z misji – max 15 wyrazów, bez JSON i klamerek."""
     clean = clean_markdown(text)
+    sector = name.replace("_", " ").replace("-", " ").strip()
+    sector_words = sector.split()
+    if len(sector_words) > 3:
+        sector = " ".join(sector_words[:3])
+
     if not clean:
-        words = ["Plik", name.replace("_", " "), "bez", "zawartosci", "tekstowej", "w", "vault", "BRAIN", "GalaxyNotes", "."]
+        brief = f"Anomalia wykryta w module {sector}. Stan: Krytyczny. Zalecana interwencja."
     else:
-        words = clean.split()
-    brief_words = words[:10]
-    while len(brief_words) < 10:
-        brief_words.append("[...]")
-    return " ".join(brief_words)
+        text_len = len(clean)
+        if text_len > 5000:
+            stan = "Aktywny"
+        elif text_len < 500:
+            stan = "Stabilny"
+        else:
+            stan = "Stabilny"
+        brief = f"Wykryto dane strukturalne. Sektor: {sector}. Stan: {stan}."
+
+    words = brief.split()
+    if len(words) > 15:
+        words = words[:15]
+        brief = " ".join(words)
+        if not brief.endswith("."):
+            brief += "."
+    return brief
 
 
 def count_wikilinks(text: str) -> int:
@@ -137,12 +153,16 @@ def analyze_local(md_file: Path, vault_path: Path) -> dict:
     links = [l.strip() for l in links if l.strip() != name]
     links = list(dict.fromkeys(links))[:5]
 
+    # Czysta treść .md (bez frontmatter, max 3000 znaków dla HUD)
+    content_clean = clean[:3000] if clean else ""
+
     return {
         "file": str(md_file.relative_to(vault_path)).replace("\\", "/"),
         "tooltip": tooltip,
         "star_class": star_class,
         "energy_level": energy_level,
         "brief": brief,
+        "content": content_clean,
         "suggested_links": links,
         "stats": {"char_count": text_len, "wikilink_count": link_count},
         "source": "local"
@@ -282,16 +302,18 @@ def process_single_file(md_file: Path, vault_path: Path, processed: set) -> tupl
     if API_ENABLED:
         ai_result = analyze_with_ai(md_file, raw)
 
+    clean_text = clean_markdown(raw)
     if ai_result:
         result = {
             "file": str(md_file.relative_to(vault_path)).replace("\\", "/"),
-            "tooltip": extract_first_sentence(clean_markdown(raw)) or f"Notatka {key}.",
-            "star_class": ai_result.get("star_class", "Standard"),
+            "tooltip": extract_first_sentence(clean_text) or f"Notatka {key}.",
+            "star_class": ai_result.get("star_class", "Standardowy sektor"),
             "energy_level": ai_result.get("energy_level", "Srednia"),
             "brief": ai_result.get("brief", "Brak opisu"),
+            "content": clean_text[:3000],
             "suggested_links": ai_result.get("suggested_links", []),
             "stats": {
-                "char_count": len(clean_markdown(raw)),
+                "char_count": len(clean_text),
                 "wikilink_count": count_wikilinks(raw)
             },
             "source": "ai"
@@ -305,6 +327,7 @@ def process_single_file(md_file: Path, vault_path: Path, processed: set) -> tupl
 
 def process_vault(vault_path: Path = DEFAULT_BRAIN_PATH):
     """Przetwarza cały vault z batch processing i checkpointami."""
+    global API_ENABLED
     if not vault_path.exists():
         raise FileNotFoundError(f"Vault nie istnieje: {vault_path}")
 

@@ -42,3 +42,6 @@ data/output/
 
 # Local test files
 .test/
+
+# Design assets (local only)
+design/
