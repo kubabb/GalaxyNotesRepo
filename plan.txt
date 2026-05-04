@@ -1,115 +1,153 @@
-MASTER PROMPT: OPERACJA „GALAXY-PILOT ENGINE"
+MASTER PROMPT: OPERACJA „GALAXY-PILOT EVOLUTION v2.0"
 
-Status: Autonomiczny proces nocny (NIGHT-RUN).
-Cel: Budowa uniwersalnego silnika wizualizacji wiedzy 3D z aktywnym kartografowaniem semantycznym.
-Model: Gemma 4 (wykorzystanie native function calling i multimodalności).
+Status: Strategia HERMES. Rozbudowa systemu o uniwersalny importer, pełne sterowanie lotem 3D, interaktywny HUD oraz automatyczną kontrolę wersji.
+Model: Gemma 4 (google/gemma-4-26b-a4b-it:free) z retry logic i fallbackiem lokalnym.
 
 ================================================================================
-ZESPÓŁ AGENTÓW (8 członków – wszyscy muszą być aktywni i współpracować):
+ZESPÓŁ AGENTÓW (8 członków + HERMES jako strateg):
 ================================================================================
 
 1. SECURITY-OFFICER   – Strażnik bezpieczeństwa. Pilnuje .env, kluczy API i .gitignore.
-2. ASTRONOMER         – Matematyk galaktyki. Oblicza wagi, współrzędne i kolory gwiazd.
-3. STORYTELLER        – Analityk semantyczny. Generuje metadane Sci-Fi i tooltips.
-4. CODER              – Inżynier kokpitu 3D. Buduje front-end w Three.js / React-Force-Graph-3D.
-5. WATCHMAN           – Strażnik procesu. Monitor pipeline, loguje błędy, wznawia pracę.
-6. GIT-PUSHER         – Deployment. Wypycha kod na GitHub po zgodzie SO i DEBUGGERA.
-7. DEBUGGER           – QA i tester. Waliduje kod Python, JSONy i aplikację 3D.
-8. LIBRARIAN          – Bibliotekarz. Zarządza wiedzą w BRAIN i strukturą .galaxy_map/.
+2. ASTRONOMER         – Matematyk galaktyki. Fizyka semantyczna – pozycje na podstawie powiązań.
+3. STORYTELLER        – Deep Scan AI. Analiza kontekstowa, auto-[[WikiLinks]], retry logic.
+4. CODER              – Inżynier kokpitu 3D. WASD+mysz, Hyperjump, System Zoom, HUD z treścią.
+5. WATCHMAN           – Strażnik procesu. Monitoring, logi, wznowienie, timeouty.
+6. GIT-PUSHER         – Agresywny deployment. Commit+push po każdym pliku. Kopia zapasowa na bieżąco.
+7. DEBUGGER           – QA i diagnosta. Retry logic API, stabilność, naprawa timeoutów.
+8. LIBRARIAN          – Bibliotekarz. Struktura .galaxy_map/, BRAIN, drag&drop importer.
+9. HERMES             – Strateg. Koordynuje agentów, podejmuje decyzje architektoniczne.
 
 ================================================================================
-FAZY PROJEKTU
+FAZY PROJEKTU (EVOLUTION v2.0)
 ================================================================================
 
-1. FAZA INICJACJI (AGENT: SECURITY-OFFICER + LIBRARIAN)
+FAZA 0: IMPERIUM HERMESA (Strategia)
+   - HERMES aktualizuje plan.txt i rozdziela zadania.
+   - Definiuje interfejsy między agentami.
 
-   Przygotuj środowisko agnostyczne (niezależne od ścieżek):
+FAZA 1: IMPORTER I BEZPIECZEŃSTWO (SECURITY-OFFICER + LIBRARIAN)
 
-   a) Interaktywny Setup:
-      - Stwórz plik setup.sh, który przy starcie pobierze od użytkownika klucz API i ścieżkę do projektu (TARGET_PATH).
-      - Zapisz dane w config/.env.
-      - KRYTYCZNE: Wygeneruj plik .gitignore blokujący config/.env, node_modules i dane tymczasowe.
-      - SECURITY-OFFICER waliduje .env i .gitignore przy każdym starcie.
+   a) Dynamiczny Importer:
+      - Użytkownik wskazuje dowolny folder (TARGET_PATH) przez:
+        * Ścieżkę w setup.ps1
+        * Drag&Drop pliku/folderu na okno przeglądarki
+        * Wybór z listy w GUI kokpitu 3D
+      - LIBRARIAN skanuje TARGET_PATH i buduje .galaxy_map/ lustrzane.
 
-   b) Struktura Lustrzana (LIBRARIAN):
-      - Stwórz wewnątrz projektu folder .galaxy_map/.
-      - Każdy plik z TARGET_PATH musi otrzymać tam swój odpowiednik .md (np. main.py -> .galaxy_map/main.py.md).
-      - LIBRARIAN dba o porządek, linki WikiLink i indeksy w .galaxy_map/.
+   b) Struktura Lustrzana v2:
+      - Każdy plik z TARGET_PATH → .galaxy_map/[ścieżka].md
+      - Pliki .md zawierają: YAML frontmatter, metadane Sci-Fi, linki, treść.
+      - Jeśli projekt "na surowo" – LIBRARIAN nadaje strukturę BRAIN.
 
-2. FAZA ANALIZY I KARTOGRAFOWANIA (AGENT: STORYTELLER + LIBRARIAN)
+   c) Bezpieczeństwo:
+      - SECURITY-OFFICER waliduje .env przy każdym starcie.
+      - .gitignore blokuje: config/.env, __pycache__/, data/output/, logs/.
+      - DEBUGGER skanuje wycieki kluczy przed każdym pushem.
 
-   Wykorzystaj klucz API do aktywnego wzbogacania bazy wiedzy:
+FAZA 2: DEEP SCAN AI (STORYTELLER + DEBUGGER)
 
-   a) Semantyczne Linkowanie (STORYTELLER + LIBRARIAN):
-      - Dla każdego pliku przeprowadź analizę kontekstową. Nie szukaj tylko istniejących linków – AI musi zasugerować nowe.
-      - Jeśli plik A (kod) i plik B (notatka) są powiązane tematycznie, wstrzyknij [[WikiLink]] w pliku .md wewnątrz .galaxy_map/.
-      - LIBRARIAN aktualizuje indeksy i dokumentuje decyzje w BRAIN.
+   a) Analiza Gemma 4:
+      - Deep Scan każdego pliku z TARGET_PATH.
+      - Retry logic: 3 próby z backoff (2s, 4s, 8s) przy timeout/429.
+      - Fallback lokalny: jeśli API padnie – heurystyka tekstowa.
 
-   b) Sensor Scan (STORYTELLER):
-      - Wygeneruj metadane Sci-Fi dla każdego obiektu:
-        * Star_Class: (np. Projekt aktywny, Archiwum, Standard).
-        * Energy_Level: (na podstawie wielkości pliku lub częstotliwości edycji).
-        * Brief: 10-wyrazowe streszczenie „skanu pokładowego".
-      - Zapisz wyniki w data/output/metadata.json.
+   b) Auto-WikiLinks:
+      - STORYTELLER proponuje [[WikiLink]] na podstawie kontekstu.
+      - LIBRARIAN zapisuje propozycje w .galaxy_map/.
+      - ASTRONOMER używa linków do fizyki galaktyki.
 
-3. FAZA ASTROMETRII (AGENT: ASTRONOMER)
+   c) Diagnoza DEBUGGERA:
+      - Analiza dlaczego API wywalało timeouty.
+      - Implementacja queue + batch processing.
+      - Limit równoległych requestów: max 3 na raz.
 
-   Przetwórz surowe dane na fizykę wszechświata:
+FAZA 3: FIZYKA SEMANTYCZNA (ASTRONOMER)
 
-   a) Grawitacja Węzłów:
-      - Oblicz pozycje (X, Y, Z) dla każdej gwiazdy.
-      - Pliki gęsto połączone linkami mają tworzyć Konstelacje.
-      - Całość bazy wiedzy ma przyjąć formę Galaktyki Spiralnej.
-      - Zapisz wyniki w data/output/galaxy_data.json.
+   a) Grawitacja Węzłów v2:
+      - Pozycje (X,Y,Z) na podstawie:
+        * Ilości linków przychodzących (masa)
+        * Odległości semantycznej (cosine similarity tekstów)
+        * Daty modyfikacji (gwiazdy aktywne bliżej centrum)
+      - Galaktyka spiralna z 3 ramionami.
+      - Konstelacje = gęsto połączone klastry.
 
-   b) Live-Sync (ASTRONOMER + WATCHMAN):
-      - Przygotuj skrypt monitorujący (Watcher), który doda nową gwiazdę w locie, gdy w TARGET_PATH pojawi się nowy plik.
-      - WATCHMAN pilnuje, aby proces nie przerwał się przy uszkodzonym pliku.
+   b) Live-Sync:
+      - Watcher dodaje nowe gwiazdy w locie.
+      - ASTRONOMER przelicza pozycje przy nowym pliku.
 
-4. FAZA KOKPITU 3D (AGENT: CODER + DEBUGGER)
+FAZA 4: KOKPIT 3D v2 (CODER + DEBUGGER)
 
-   Zbuduj interfejs użytkownika w Three.js (React-Force-Graph-3D):
+   a) Model Lotu (Free-Roam):
+      - WASD: Swobodne latanie w przestrzeni 3D.
+      - Mysz: Obrót kamery (pitch/yaw).
+      - Shift: Hyperjump – płynny dolot do zaznaczonej gwiazdy.
+      - Space: System Zoom – powrót do widoku całej galaktyki.
+      - Scroll: Przyspieszenie/zwolnienie.
 
-   a) Nawigacja Statkiem (CODER):
-      - Kamera to statek kosmiczny (WASD + Mysz do sterowania).
-      - Klawisz Shift = Hyperjump (szybkie przybliżenie do zaznaczonej gwiazdy).
-      - Klawisz Space = Global View (płynny odjazd kamery do widoku całej galaktyki).
-      - Ładuj dane z galaxy_data.json i metadata.json.
-      - Styl: Cyberpunk/Space-Sim. Czarne tło, neonowe linie powiązań, efekty świecenia (Bloom).
+   b) Interaktywny HUD v2:
+      - Po zbliżeniu do gwiazdy (distance < threshold):
+        * Płynne pojawienie się panelu HUD.
+        * Wyświetla: Star_Class, Energy_Level, Brief, treść notatki.
+        * Przycisk „Wejdź w szczegóły" – rozwija pełną treść w kokpicie.
+        * Przycisk „Wróć" – zamknięcie panelu bez wychodzenia z 3D.
+      - Styl: Cyberpunk, przezroczystość, animacje CSS.
 
-   b) HUD (Heads-Up Display) (CODER):
-      - Po zbliżeniu się do gwiazdy, na ekranie ma pojawić się półprzezroczysty panel z opisem "Sensor Scan" i treścią pliku.
-      - Panel pobiera dane z metadata.json (Star_Class, Energy_Level, Brief, tooltip).
+   c) Drag&Drop Importer w Kokpicie:
+      - Użytkownik przeciąga folder/plik na canvas 3D.
+      - System pyta: „Zaimportować [nazwa] jako nowy sektor?"
+      - Po akceptacji: LIBRARIAN skanuje, STORYTELLER analizuje, ASTRONOMER dodaje gwiazdy.
 
-   c) QA i Testowanie (DEBUGGER):
-      - DEBUGGER testuje kompilację kodu Python (py_compile).
-      - DEBUGGER testuje aplikację 3D w przeglądarce (błędy JS, CORS, 404).
-      - Jeśli znajdzie błąd – deleguje naprawę do CODER-a i ponownie testuje.
-      - Waliduje JSONy wyjściowe (galaxy_data.json, metadata.json).
+FAZA 5: AGRESYWNY PUSH (GIT-PUSHER + WATCHMAN)
 
-5. NADZÓR I CIĄGŁOŚĆ (AGENT: WATCHMAN + GIT-PUSHER + SECURITY-OFFICER)
+   a) Push per Plik:
+      - Po każdej udanej analizie pliku przez STORYTELLERA:
+        * GIT-PUSHER: git add . → git commit -m "Galaxy Pilot: Mapping star [nazwa]" → git push
+      - Kopia zapasowa postępów na bieżąco.
 
-   a) Logowanie (WATCHMAN):
-      - Wszystkie błędy i postępy zapisuj w 00_Runtime/Galaxy_Build.log.
-      - Jeśli liczba błędów przekroczy 20%, WATCHMAN budzi SECURITY-OFFICER i wstrzymuje pipeline.
+   b) Batch Push (fallback):
+      - Jeśli push per plik zawodzi – batch co 10 plików.
+      - WATCHMAN monitoruje i przełącza tryb.
 
-   b) Automatyczne Wznowienie (WATCHMAN):
-      - Jeśli proces analizy API zostanie przerwany, Watchman musi wznowić go od ostatniego nieprzetworzonego pliku.
-      - Pomijaj uszkodzone pliki .md, zapisz błąd i kontynuuj.
+   c) Pre-Push Security:
+      - SECURITY-OFFICER waliduje .env/.gitignore.
+      - DEBUGGER skanuje wycieki.
+      - GIT-PUSHER wykonuje push tylko po zgodzie obu.
 
-   c) Deployment (GIT-PUSHER + SECURITY-OFFICER + DEBUGGER):
-      - Przed pushem: SECURITY-OFFICER waliduje .gitignore i .env.
-      - Przed pushem: DEBUGGER potwierdza brak błędów.
-      - GIT-PUSHER przygotowuje gotowy folder /dist z aplikacją.
-      - GIT-PUSHER wykonuje commit i push na GitHub.
-      - LIBRARIAN aktualizuje Project_Log w BRAIN o deploymencie.
+FAZA 6: NADZÓR I CIĄGŁOŚĆ (WATCHMAN + DEBUGGER)
+
+   a) Monitoring API:
+      - WATCHMAN liczy requesty/minutę.
+      - Przy zbliżaniu się do limitu – zmniejsza batch size.
+      - Automatyczne przełączanie local/API.
+
+   b) Logi:
+      - 00_Runtime/Galaxy_Build.log – log operacyjny.
+      - 00_Runtime/INPUT_REQUIRED.md – problemy wymagające użytkownika.
+      - data/output/progress.json – checkpointy dla wznowienia.
 
 ================================================================================
-INSTRUKCJA WYKONAWCZA
+INSTRUKCJA WYKONAWCZA DLA HERMESA
 ================================================================================
 
-- Działaj w pełnej autonomii.
-- Używaj wyłącznie cat << EOF do tworzenia plików.
-- Nie przerywaj pracy do godziny 6:00 rano lub do pełnego skatalogowania projektu.
-- Jeśli napotkasz problem niemożliwy do rozwiązania, opisz go w 00_Runtime/INPUT_REQUIRED.md.
-- Wszystkie ścieżki Windows w plikach konfiguracyjnych używają slashy: C:/Users/... (unikaj backslashy w YAML/JSON).
+- Działaj w pełnej autonomii jako Strateg.
+- Deleguj zadania agentom przez Task tool.
+- Monitoruj postęp przez WATCHMAN.
+- Używaj wyłącznie cat << EOF do tworzenia plików (zakodowane w agentach).
+- Nie przerywaj pracy do pełnego wdrożenia v2.0.
+- Jeśli napotkasz problem – zapisz w 00_Runtime/INPUT_REQUIRED.md i kontynuuj.
+- Wszystkie ścieżki Windows używają slashów: C:/Users/... (unikaj backslashy w YAML/JSON).
+
+================================================================================
+DRAG & DROP INTERFACE
+================================================================================
+
+W kokpicie 3D (dist/index.html) zaimplementuj:
+
+1. Event listeners: dragover, dragleave, drop na canvasie Three.js.
+2. Obsługę plików i folderów (webkitdirectory dla folderów).
+3. Po dropie:
+   - Odczytaj listę plików (rekurencyjnie dla folderów).
+   - Filtruj: .md, .py, .js, .txt, .json (konfigurowalne).
+   - Wyświetl modal: „Znaleziono X plików. Zaimportować?"
+   - Po akceptacji: wyślij do backendu (fetch POST do lokalnego serwera) lub zapisz w IndexedDB.
+4. Alternatywa bez backendu: zapisz w localStorage/IndexedDB i przeładuj galaxy_data.json.

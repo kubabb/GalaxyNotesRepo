@@ -1,33 +1,66 @@
 """
-ASTRONOMER (Data Refiner)
-Matematyk galaktyki. Oblicza „wagę” notatek (im więcej linków prowadzi
-do notatki, tym większa i jaśniejsza jest gwiazda).
-Przetwarza surowy graf połączeń na współrzędne i przypisuje kolory
-na podstawie folderów 01-04.
+ASTRONOMER v2.0 (Semantic Physics Refiner)
+Matematyk galaktyki z fizyką semantyczną.
+- Czyta pliki .md z vaultu.
+- Ekstrahuje [[WikiLinks]].
+- Grupuje węzły w ramiona spiralne na podstawie podobieństwa linków.
+- Przypisuje współrzędne 3D: ważniejsze notatki bliżej centrum.
+- Zapisuje galaxy_data.json w formacie v2.0.
 """
+import os
 import re
 import json
 import math
 import random
+import argparse
 from pathlib import Path
 from collections import defaultdict
 
-# Domyślna ścieżka do vaultu BRAIN
-DEFAULT_BRAIN_PATH = Path(r"C:\Users\kubar\OneDrive\Dokumenty\BRAIN")
-
-OUTPUT_DIR = Path(__file__).resolve().parent.parent / "data" / "output"
+# Ścieżki projektu
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CONFIG_ENV = PROJECT_ROOT / "config" / ".env"
+OUTPUT_DIR = PROJECT_ROOT / "data" / "output"
 OUTPUT_FILE = OUTPUT_DIR / "galaxy_data.json"
 
-# Kolory dla folderów (HEX)
-FOLDER_COLORS = {
-    "01": "#3B82F6",  # niebieski – Projects
-    "02": "#10B981",  # zielony – Library
-    "03": "#F59E0B",  # pomarańczowy – Standards
-    "04": "#EF4444",  # czerwony – Archive
-}
-DEFAULT_COLOR = "#9CA3AF"  # szary
-
 LINK_PATTERN = re.compile(r"\[\[([^\]]+)\]\]")
+
+# Paleta kolorów dla ramion spirali
+ARM_COLORS = [
+    "#FF5733", "#33FF57", "#3357FF", "#F333FF",
+    "#33FFF5", "#FF33A8", "#FFD433", "#8D33FF",
+]
+
+SKIP_DIRS = {".git", "node_modules", "__pycache__"}
+
+
+def load_env(path: Path) -> dict:
+    """Prosty parser pliku .env (KEY=VALUE)."""
+    env = {}
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, value = line.split("=", 1)
+                env[key.strip()] = value.strip()
+    return env
+
+
+def get_vault_path(cli_path: str = None) -> Path:
+    """Zwraca ścieżkę do vaultu: argument CLI > BRAIN_PATH > TARGET_PATH > domyślna."""
+    if cli_path:
+        return Path(cli_path)
+    env = load_env(CONFIG_ENV)
+    for key in ("BRAIN_PATH", "TARGET_PATH"):
+        if key in env and env[key]:
+            return Path(env[key])
+    return Path(r"C:\Users\kubar\OneDrive\Dokumenty\BRAIN")
+
+
+def should_skip(path_parts) -> bool:
+    """Pomija foldery .git, node_modules, __pycache__."""
+    return any(part in SKIP_DIRS for part in path_parts)
 
 
 def extract_links(text: str) -> set:
@@ -35,195 +68,241 @@ def extract_links(text: str) -> set:
     matches = LINK_PATTERN.findall(text)
     links = set()
     for match in matches:
-        # Usuń ewentualny alias
         clean = match.split("|")[0].strip()
+        # Normalizuj separatory ścieżek do nazwy pliku (stem)
         clean = clean.replace("/", "\\")
-        links.add(clean)
+        link_stem = Path(clean).stem
+        if link_stem:
+            links.add(link_stem)
     return links
 
 
-def detect_folder_category(relative_path: Path) -> str:
-    """Wykrywa kategorię folderu (01-04) na podstawie ścieżki."""
-    parts = relative_path.parts
-    for part in parts:
-        if part.startswith("01_"):
-            return "01"
-        if part.startswith("02_"):
-            return "02"
-        if part.startswith("03_"):
-            return "03"
-        if part.startswith("04_"):
-            return "04"
-    return "other"
-
-
-def build_graph(vault_path: Path = DEFAULT_BRAIN_PATH):
+def build_graph(vault_path: Path):
     """
     Buduje graf notatek na podstawie linków Obsidian.
-    Zwraca dict: nazwa_pliku -> {links, weight, category, color}
+    Zwraca dict: node_name -> {links_out: set(), links_in: set(), file: str}
     """
     if not vault_path.exists():
-        raise FileNotFoundError(f"Vault BRAIN nie istnieje: {vault_path}")
+        raise FileNotFoundError(f"Vault nie istnieje: {vault_path}")
 
     nodes = {}
-    # Zbierz wszystkie pliki .md, pomijając .git/
     md_files = [
         f for f in vault_path.rglob("*.md")
-        if ".git" not in f.parts
+        if not should_skip(f.parts)
     ]
 
-    # Pierwszy przejazd: stwórz węzły
+    # Pierwszy przejazd: rejestracja węzłów
     for md_file in md_files:
         rel = md_file.relative_to(vault_path)
-        category = detect_folder_category(rel)
         node_name = md_file.stem
         nodes[node_name] = {
             "file": str(rel),
             "links_out": set(),
             "links_in": set(),
-            "category": category,
-            "color": FOLDER_COLORS.get(category, DEFAULT_COLOR),
         }
 
-    # Drugi przejazd: wypełnij linki
+    # Drugi przejazd: ekstrakcja linków
     for md_file in md_files:
         text = md_file.read_text(encoding="utf-8")
         links = extract_links(text)
         node_name = md_file.stem
         nodes[node_name]["links_out"] = links
 
-        # Zarejestruj linki przychodzące
-        for link in links:
-            # Link może być nazwą pliku bez rozszerzenia lub ścieżką
-            link_stem = Path(link).stem
+        for link_stem in links:
             if link_stem in nodes:
                 nodes[link_stem]["links_in"].add(node_name)
 
-    # Oblicz wagi (in-degree)
-    for name, data in nodes.items():
-        data["weight"] = len(data["links_in"])
-
     return nodes
+
+
+def jaccard(a: set, b: set) -> float:
+    """Zwraca współczynnik Jaccarda dla dwóch zbiorów."""
+    if not a and not b:
+        return 1.0
+    inter = len(a & b)
+    union = len(a | b)
+    return inter / union if union else 0.0
+
+
+def compute_spiral_arms(nodes: dict):
+    """
+    Grupuje węzły w ramiona spiralne na podstawie podobieństwa linków (Jaccard).
+    Zwraca (groups_dict, arm_count).
+    """
+    if not nodes:
+        return {}, 0
+
+    # Oblicz degree
+    degrees = {name: len(data["links_in"]) + len(data["links_out"]) for name, data in nodes.items()}
+
+    # Ustal liczbę ramion (rozsądna dynamika)
+    n = len(nodes)
+    arm_count = max(3, min(8, int(math.sqrt(n))))
+    if n < arm_count:
+        arm_count = max(1, n)
+
+    # Zbiory cech dla każdego węzła (linki przychodzące + wychodzące)
+    features = {
+        name: nodes[name]["links_out"] | nodes[name]["links_in"]
+        for name in nodes
+    }
+
+    # Wybierz seed'y (centrówki ramion): top-degree z różnorodnością
+    sorted_by_deg = sorted(nodes.keys(), key=lambda x: degrees[x], reverse=True)
+    seeds = []
+    for name in sorted_by_deg:
+        if len(seeds) >= arm_count:
+            break
+        # Sprawdź różnorodność: akceptuj jeśli Jaccard z istniejącymi seedami < 0.5
+        # lub brak seedów
+        ok = True
+        for s in seeds:
+            if jaccard(features[name], features[s]) > 0.5:
+                ok = False
+                break
+        if ok or len(seeds) == 0:
+            seeds.append(name)
+
+    # Jeśli seedów za mało, dopełnij kolejnymi top-degree
+    for name in sorted_by_deg:
+        if len(seeds) >= arm_count:
+            break
+        if name not in seeds:
+            seeds.append(name)
+
+    # Przypisz każdy węzeł do najbliższego seeda (max Jaccard)
+    groups = {}
+    group_sizes = defaultdict(int)
+
+    for name in nodes:
+        if name in seeds:
+            g = seeds.index(name)
+            groups[name] = g
+            group_sizes[g] += 1
+            continue
+
+        best_g = 0
+        best_sim = -1.0
+        for idx, seed in enumerate(seeds):
+            sim = jaccard(features[name], features[seed])
+            if sim > best_sim:
+                best_sim = sim
+                best_g = idx
+
+        # Jeśli zero podobieństwa, wyrównaj do najmniejszej grupy
+        if best_sim <= 0.0 and group_sizes:
+            best_g = min(group_sizes.keys(), key=lambda g: group_sizes[g])
+        elif best_sim <= 0.0:
+            best_g = 0
+
+        groups[name] = best_g
+        group_sizes[best_g] += 1
+
+    return groups, arm_count
 
 
 def build_edges(nodes: dict):
     """
     Buduje listę krawędzi (edges) między węzłami.
-    Zwraca listę dictów: {source, target, weight}
+    Zwraca listę dictów: {source, target}.
     """
     edges = []
     seen = set()
     for source, data in nodes.items():
         for target in data["links_out"]:
-            target_stem = Path(target).stem
-            if target_stem in nodes:
-                # Unikaj duplikatów (A->B i B->A)
-                key = tuple(sorted([source, target_stem]))
+            if target in nodes:
+                key = tuple(sorted([source, target]))
                 if key not in seen:
                     seen.add(key)
-                    # Waga krawędzi = suma linków w obie strony
-                    weight = 1
-                    if source in nodes[target_stem]["links_out"]:
-                        weight = 2
-                    edges.append({
-                        "source": source,
-                        "target": target_stem,
-                        "weight": weight
-                    })
+                    edges.append({"source": source, "target": target})
     return edges
 
 
-def assign_coordinates(nodes: dict):
+def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
     """
     Przypisuje współrzędne 3D (X, Y, Z) dla każdego węzła.
-    Tworzy galaktykę spiralną z ramionami spiralnymi.
-    Pliki gęsto połączone (wysoki degree) tworzą konstelacje w płaszczyznach.
+    Ważniejsze notatki (więcej linków) -> mniejszy promień (bliżej centrum).
+    Każde ramię spirali ma swój sektor kątowy.
     """
-    names = list(nodes.keys())
-    n = len(names)
-    if n == 0:
-        return nodes
-
-    # Oblicz degree (in + out) dla konstelacji
-    for name in nodes:
-        nodes[name]["degree"] = len(nodes[name]["links_in"]) + len(nodes[name]["links_out"])
-
-    # Posortuj według wagi malejąco – cięższe bliżej centrum
-    names.sort(key=lambda x: nodes[x]["weight"], reverse=True)
-
     positions = {}
-    # Parametry galaktyki spiralnej
-    spiral_tightness = 0.3  # jak bardzo skręcone są ramiona
-    arm_count = 3  # liczba ramion spiralnych
-    disk_thickness = 15  # grubosć dysku galaktyki
+    degrees = {name: len(data["links_in"]) + len(data["links_out"]) for name, data in nodes.items()}
 
-    for i, name in enumerate(names):
-        weight = nodes[name]["weight"]
-        degree = nodes[name]["degree"]
+    # Globalne sortowanie według degree malejąco (ważniejsze = niższy indeks)
+    sorted_names = sorted(nodes.keys(), key=lambda x: degrees[x], reverse=True)
+    rank_map = {name: i for i, name in enumerate(sorted_names)}
+
+    # Parametry spirali
+    spiral_tightness = 0.25
+    min_radius = 20
+    radius_step = 22
+    max_radius = 400
+
+    for name in nodes:
+        degree = degrees[name]
+        val = min(max(degree, 1), 10)
+        rank = rank_map[name]
 
         # Promień: ważniejsze bliżej centrum
-        base_radius = 20 + i * 25
-        if weight > 0:
-            base_radius = base_radius / (1 + 0.5 * math.log1p(weight))
-        base_radius = max(5, base_radius)
+        R = min_radius + rank * radius_step
+        if R > max_radius:
+            R = max_radius + random.uniform(0, 60)
 
-        # Kąt: podstawowy + wkład spiralny
-        arm_offset = (hash(name) % arm_count) * (2 * math.pi / arm_count)
-        spiral_angle = base_radius * spiral_tightness
-        angle = arm_offset + spiral_angle + (i * 0.1)
+        # Kąt sektora ramienia + spiralne rozłożenie wzdłuż ranku
+        arm_index = groups.get(name, 0) % arm_count if arm_count else 0
+        arm_center = arm_index * (2 * math.pi / arm_count) if arm_count else 0
+        angle = arm_center + rank * spiral_tightness + random.uniform(-0.08, 0.08)
 
-        # Współrzędne X, Y w płaszczyźnie dysku
-        x = base_radius * math.cos(angle)
-        y = base_radius * math.sin(angle)
+        x = R * math.cos(angle)
+        y = R * math.sin(angle)
 
-        # Z: grubość dysku + efekt konstelacji dla gęsto połączonych
-        # Węzły o wysokim degree dostają bardziej wyraźną Z
-        z = random.uniform(-disk_thickness, disk_thickness)
-        if degree > 5:
-            # Konstelacje: gęsto połączone węzły wyróżnione na osi Z
-            z = z * 0.3 + (degree * 2)
-        elif degree > 2:
-            z = z * 0.6 + (degree * 0.5)
+        # Brak linków -> zewnętrzny orbit
+        if degree == 0:
+            R = max_radius + random.uniform(40, 100)
+            angle = random.uniform(0, 2 * math.pi)
+            x = R * math.cos(angle)
+            y = R * math.sin(angle)
+
+        # Z = masa * random(-1, 1)
+        z = val * random.uniform(-1, 1)
 
         positions[name] = {
             "x": round(x, 2),
             "y": round(y, 2),
             "z": round(z, 2),
+            "val": val,
+            "color": ARM_COLORS[arm_index % len(ARM_COLORS)],
+            "group": f"ramie_{arm_index + 1}",
         }
 
-    # Dodaj współrzędne do nodes
-    for name in nodes:
-        nodes[name]["x"] = positions.get(name, {}).get("x", 0)
-        nodes[name]["y"] = positions.get(name, {}).get("y", 0)
-        nodes[name]["z"] = positions.get(name, {}).get("z", 0)
-        # Konwertuj sety na listy dla JSON
-        nodes[name]["links_out"] = list(nodes[name]["links_out"])
-        nodes[name]["links_in"] = list(nodes[name]["links_in"])
-
-    return nodes
+    return positions
 
 
 def refine_galaxy(vault_path: Path = None):
-    """Główna funkcja agenta – buduje i zapisuje dane galaktyki."""
-    if vault_path is None:
-        vault_path = DEFAULT_BRAIN_PATH
+    """Główna funkcja agenta – buduje i zapisuje dane galaktyki v2.0."""
+    print(f"[ASTRONOMER v2.0] Skanuję vault: {vault_path}")
+    nodes_raw = build_graph(vault_path)
+    print(f"[ASTRONOMER v2.0] Znaleziono {len(nodes_raw)} notatek.")
 
-    print(f"[ASTRONOMER] Skanuję vault: {vault_path}")
-    nodes = build_graph(vault_path)
-    print(f"[ASTRONOMER] Znaleziono {len(nodes)} notatek.")
+    groups, arm_count = compute_spiral_arms(nodes_raw)
+    print(f"[ASTRONOMER v2.0] Wyodrębniono {arm_count} ramion spiralnych.")
 
-    edges = build_edges(nodes)
-    print(f"[ASTRONOMER] Znaleziono {len(edges)} krawędzi.")
+    edges = build_edges(nodes_raw)
+    print(f"[ASTRONOMER v2.0] Znaleziono {len(edges)} krawędzi.")
 
-    nodes = assign_coordinates(nodes)
+    positions = assign_coordinates(nodes_raw, groups, arm_count)
+
+    # Przygotuj finalny format nodes
+    nodes_out = {}
+    for name in nodes_raw:
+        nodes_out[name] = positions[name]
 
     output_data = {
-        "nodes": nodes,
+        "nodes": nodes_out,
         "edges": edges,
         "meta": {
-            "node_count": len(nodes),
+            "node_count": len(nodes_out),
             "edge_count": len(edges),
-            "vault_path": str(vault_path),
+            "spiral_arms": arm_count,
         }
     }
 
@@ -231,9 +310,14 @@ def refine_galaxy(vault_path: Path = None):
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(output_data, f, ensure_ascii=False, indent=2)
 
-    print(f"[ASTRONOMER] Zapisano galaxy_data.json w {OUTPUT_FILE}")
+    print(f"[ASTRONOMER v2.0] Zapisano galaxy_data.json w {OUTPUT_FILE}")
     return OUTPUT_FILE
 
 
 if __name__ == "__main__":
-    refine_galaxy()
+    parser = argparse.ArgumentParser(description="Galaxy Mapper v2.0")
+    parser.add_argument("--vault", type=str, default=None, help="Ścieżka do vaultu z notatkami .md")
+    args = parser.parse_args()
+
+    vault = get_vault_path(args.vault)
+    refine_galaxy(vault)

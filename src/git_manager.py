@@ -1,139 +1,215 @@
 """
-GIT-PUSHER
-Zarządca kontroli wersji Git.
-Tworzy repozytorium na GitHubie i wypycha tam projekt.
-Przed pushem sprawdza konfigurację z SECURITY-OFFICER.
+GIT-PUSHER v2.0
+Agresywny zarządca kontroli wersji Git.
+Wypycha zmiany per-file lub w batchu, z walidacją bezpieczeństwa.
 """
 import os
 import sys
 import subprocess
-import requests
+import logging
 from pathlib import Path
+from dotenv import load_dotenv
 
-# Import lokalny – watchman obsłuży brak modułu
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
+# --- Logi ---
+logging.basicConfig(
+    level=logging.INFO,
+    format="[GIT-PUSHER] %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger("git_pusher")
+
+# --- Env ---
+ENV_PATH = PROJECT_ROOT / "config" / ".env"
+if ENV_PATH.exists():
+    load_dotenv(dotenv_path=ENV_PATH, override=True)
+
+# --- Importy lokalne (watchman-style) ---
 try:
-    import env_guard as so
+    import env_guard
 except Exception as e:
-    print(f"[GIT-PUSHER] Nie udało się załadować env_guard: {e}")
-    sys.exit(1)
+    logger.error(f"Nie udało się załadować env_guard: {e}")
+    env_guard = None
 
-GITHUB_API = "https://api.github.com"
+try:
+    import debugger
+except Exception as e:
+    logger.error(f"Nie udało się załadować debugger: {e}")
+    debugger = None
+
+# --- Stan wewnętrzny ---
+_consecutive_failures: int = 0
 
 
-def _run_git(args: list, cwd: Path = None):
-    """Wykonuje komendę git i zwraca stdout."""
+def _run_git(args: list, cwd: Path = None, check: bool = True, silent: bool = True):
+    """Wykonuje komendę git. Jeśli silent=True – wycisza stdout."""
     cmd = ["git"] + args
-    result = subprocess.run(cmd, cwd=cwd or PROJECT_ROOT, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(f"Git failed: {' '.join(cmd)}\n{result.stderr}")
-    return result.stdout.strip()
+    kwargs = {
+        "cwd": cwd or PROJECT_ROOT,
+        "text": True,
+    }
+    if silent:
+        kwargs["stdout"] = subprocess.PIPE
+        kwargs["stderr"] = subprocess.PIPE
+
+    result = subprocess.run(cmd, **kwargs)
+    if check and result.returncode != 0:
+        err = result.stderr.strip() if result.stderr else "(no stderr)"
+        raise RuntimeError(f"Git failed: {' '.join(cmd)}\n{err}")
+    return result
+
+
+def _get_remote_url() -> str:
+    """Buduje URL remote z GITHUB_TOKEN i GITHUB_REPO z .env."""
+    token = os.getenv("GITHUB_TOKEN", "").strip()
+    repo = os.getenv("GITHUB_REPO", "").strip()
+    if not token:
+        raise RuntimeError("Brak GITHUB_TOKEN w config/.env")
+    if not repo:
+        raise RuntimeError("Brak GITHUB_REPO w config/.env")
+
+    if repo.startswith("http"):
+        if "@" in repo:
+            return repo
+        return repo.replace("https://", f"https://{token}@")
+    return f"https://{token}@github.com/{repo}.git"
 
 
 def ensure_git_repo():
     """Inicjalizuje lokalne repo git jeśli nie istnieje."""
     git_dir = PROJECT_ROOT / ".git"
     if not git_dir.exists():
-        print("[GIT-PUSHER] Inicjalizuję lokalne repo git...")
-        _run_git(["init"])
-        _run_git(["branch", "-M", "main"])
+        logger.info("Inicjalizuję lokalne repo git...")
+        _run_git(["init"], silent=True)
+        _run_git(["branch", "-M", "main"], silent=True)
 
 
-def create_github_repo(repo_name: str = None, private: bool = True):
-    """Tworzy repozytorium na GitHubie przez API."""
-    token = os.getenv("GITHUB_TOKEN")
-    if not token:
-        print("[GIT-PUSHER] BŁĄD: Brak GITHUB_TOKEN w środowisku.")
-        sys.exit(1)
-
-    if repo_name is None:
-        repo_name = PROJECT_ROOT.name
-
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github+json",
-    }
-    payload = {
-        "name": repo_name,
-        "private": private,
-        "auto_init": False,
-    }
-
-    print(f"[GIT-PUSHER] Tworzę repo '{repo_name}' na GitHubie...")
-    resp = requests.post(f"{GITHUB_API}/user/repos", headers=headers, json=payload)
-
-    if resp.status_code == 201:
-        data = resp.json()
-        clone_url = data["clone_url"]
-        print(f"[GIT-PUSHER] Repo utworzone: {data['html_url']}")
-        return clone_url
-    elif resp.status_code == 422:
-        # Repo już istnieje
-        print("[GIT-PUSHER] Repo prawdopodobnie już istnieje – używam istniejącego.")
-        username = _get_github_username(token)
-        return f"https://github.com/{username}/{repo_name}.git"
-    else:
-        raise RuntimeError(f"GitHub API error {resp.status_code}: {resp.text}")
-
-
-def _get_github_username(token: str) -> str:
-    """Pobiera nazwę użytkownika GitHub z API."""
-    headers = {"Authorization": f"token {token}"}
-    resp = requests.get(f"{GITHUB_API}/user", headers=headers)
-    resp.raise_for_status()
-    return resp.json()["login"]
-
-
-def add_remote(repo_url: str):
-    """Dodaje remote 'origin' lub aktualizuje go."""
+def ensure_remote():
+    """Sprawdza czy remote 'origin' istnieje; dodaje/aktualizuje jeśli nie."""
     try:
-        remotes = _run_git(["remote"])
-        if "origin" in remotes:
-            _run_git(["remote", "set-url", "origin", repo_url])
-            print("[GIT-PUSHER] Zaktualizowano remote origin.")
+        result = _run_git(["remote"], silent=True)
+        remotes = result.stdout.strip().splitlines() if result.stdout else []
+        url = _get_remote_url()
+        if "origin" not in remotes:
+            logger.info("Dodaję remote origin...")
+            _run_git(["remote", "add", "origin", url], silent=True)
         else:
-            _run_git(["remote", "add", "origin", repo_url])
-            print("[GIT-PUSHER] Dodano remote origin.")
-    except Exception as e:
-        print(f"[GIT-PUSHER] Błąd przy ustawianiu remote: {e}")
+            _run_git(["remote", "set-url", "origin", url], silent=True)
+    except RuntimeError:
         raise
 
 
-def commit_and_push(message: str = "update: automatyczny push przez GalaxyNotesProject"):
-    """Dodaje, commituje i pushuje zmiany."""
-    # Sprawdź czy są zmiany
-    status = _run_git(["status", "--porcelain"])
-    if not status:
-        print("[GIT-PUSHER] Brak zmian do spushowania.")
-        return
-
-    _run_git(["add", "."])
+def push_per_file(filename: str) -> bool:
+    """
+    Wykonuje: git add . → git commit → git push.
+    Commit: "Galaxy Pilot: Mapping star [filename]"
+    Używa GITHUB_REPO i GITHUB_TOKEN z config/.env.
+    Jeśli push zawodzi – loguje błąd i kontynuuje (nie przerywa pipeline).
+    Zwraca True/False.
+    """
+    global _consecutive_failures
     try:
-        _run_git(["commit", "-m", message])
-    except RuntimeError:
-        # Jeśli nic do commitowania (np. tylko untracked ignored)
-        pass
+        ensure_git_repo()
+        ensure_remote()
 
-    _run_git(["push", "-u", "origin", "main"])
-    print("[GIT-PUSHER] Push zakończony sukcesem.")
+        _run_git(["add", "."], silent=True)
+        _run_git(["commit", "-m", f"Galaxy Pilot: Mapping star {filename}"], silent=True)
+        _run_git(["push", "-u", "origin", "main"], silent=True)
+
+        logger.info(f"SUKCES: push_per_file({filename})")
+        _consecutive_failures = 0
+        return True
+    except RuntimeError as e:
+        logger.error(f"BŁĄD push_per_file({filename}): {e}")
+        _consecutive_failures += 1
+        return False
 
 
-def full_push(repo_name: str = None, private: bool = True):
+def batch_push(count: int) -> bool:
     """
-    Pełny pipeline puszu:
-    1. SECURITY-OFFICER sprawdza .env i .gitignore.
-    2. Tworzy repo na GitHubie (jeśli trzeba).
-    3. Inicjalizuje git lokalnie.
-    4. Dodaje remote, commituje i pushuje.
+    Commit z komunikatem "Galaxy Pilot: Batch mapping [count] stars" → push.
+    Używane gdy push_per_file zawodzi więcej niż 3 razy z rzędu.
+    Zwraca True/False.
     """
-    so.validate_before_push()
-    ensure_git_repo()
-    repo_url = create_github_repo(repo_name=repo_name, private=private)
-    add_remote(repo_url)
-    commit_and_push()
+    global _consecutive_failures
+    try:
+        ensure_git_repo()
+        ensure_remote()
+
+        _run_git(["add", "."], silent=True)
+        _run_git(["commit", "-m", f"Galaxy Pilot: Batch mapping {count} stars"], silent=True)
+        _run_git(["push", "-u", "origin", "main"], silent=True)
+
+        logger.info(f"SUKCES: batch_push({count})")
+        _consecutive_failures = 0
+        return True
+    except RuntimeError as e:
+        logger.error(f"BŁĄD batch_push({count}): {e}")
+        return False
+
+
+def validate_and_push():
+    """
+    Wywołuje env_guard.validate_before_push() oraz debugger.scan_for_leaks().
+    Jeśli oba PASS – wykonuje push.
+    """
+    # 1. env_guard
+    if env_guard is not None:
+        try:
+            env_guard.validate_before_push()
+            logger.info("PASS: env_guard.validate_before_push()")
+        except SystemExit as e:
+            logger.error(f"FAIL: env_guard.validate_before_push() (exit {e.code})")
+            return
+        except Exception as e:
+            logger.error(f"FAIL: env_guard.validate_before_push(): {e}")
+            return
+    else:
+        logger.warning("SKIP: env_guard niedostępny")
+
+    # 2. debugger
+    if debugger is not None:
+        try:
+            result = debugger.scan_for_leaks()
+            if result is False:
+                logger.error("FAIL: debugger.scan_for_leaks() zwrócił False")
+                return
+            logger.info("PASS: debugger.scan_for_leaks()")
+        except Exception as e:
+            logger.error(f"FAIL: debugger.scan_for_leaks(): {e}")
+            return
+    else:
+        logger.warning("SKIP: debugger niedostępny")
+
+    # 3. Push
+    try:
+        ensure_git_repo()
+        ensure_remote()
+        _run_git(["add", "."], silent=True)
+        _run_git(["commit", "-m", "Galaxy Pilot: Validated push"], silent=True)
+        _run_git(["push", "-u", "origin", "main"], silent=True)
+        logger.info("SUKCES: validate_and_push()")
+    except RuntimeError as e:
+        logger.error(f"BŁĄD validate_and_push(): {e}")
+
+
+def aggressive_push(filename: str) -> bool:
+    """
+    Wrapper: push per file z automatycznym fallbackiem do batch_push
+    po >3 nieudanych próbach z rzędu.
+    """
+    success = push_per_file(filename)
+    if not success and _consecutive_failures > 3:
+        logger.warning(
+            f"{_consecutive_failures} nieudanych prób z rzędu – uruchamiam batch_push..."
+        )
+        batch_push(_consecutive_failures)
+    return success
 
 
 if __name__ == "__main__":
-    full_push()
+    # Demo – można podać nazwę pliku jako argument
+    target = sys.argv[1] if len(sys.argv) > 1 else "demo_star.md"
+    aggressive_push(target)

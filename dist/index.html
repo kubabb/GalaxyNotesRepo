@@ -3,36 +3,115 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GalaxyNotes 3D Cockpit</title>
+<title>Galaxy-Pilot Evolution v2.0 – 3D Cockpit</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #000; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #fff; }
-  #canvas-container { width: 100vw; height: 100vh; }
+  #canvas-container { width: 100vw; height: 100vh; cursor: crosshair; }
+
+  /* HUD – górny prawy */
   #hud {
-    position: fixed; top: 20px; right: 20px; width: 320px;
-    background: rgba(0, 0, 0, 0.85); border: 1px solid #00ffff;
+    position: fixed; top: 20px; right: 20px; width: 380px; max-height: 80vh;
+    background: rgba(0, 10, 20, 0.9); border: 1px solid #00ffff;
     border-radius: 8px; padding: 16px; display: none;
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
-    backdrop-filter: blur(4px);
-    z-index: 10;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3), inset 0 0 20px rgba(0, 255, 255, 0.05);
+    backdrop-filter: blur(8px); z-index: 10;
+    overflow-y: auto; animation: hudIn 0.3s ease-out;
   }
+  @keyframes hudIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
   #hud h2 { margin: 0 0 10px; font-size: 1.2rem; color: #ff00ff; text-shadow: 0 0 8px #ff00ff; }
-  #hud .row { margin-bottom: 8px; font-size: 0.9rem; line-height: 1.4; }
+  #hud .row { margin-bottom: 8px; font-size: 0.85rem; line-height: 1.4; }
   #hud .label { color: #00ffff; font-weight: bold; text-shadow: 0 0 4px #00ffff; }
   #hud .close {
-    position: absolute; top: 8px; right: 10px; cursor: pointer; color: #00ffff; font-weight: bold;
+    position: absolute; top: 8px; right: 10px; cursor: pointer; color: #00ffff; font-weight: bold; font-size: 1.2rem;
   }
+  #hud .content-box {
+    background: rgba(0, 255, 255, 0.05); border: 1px solid rgba(0, 255, 255, 0.2);
+    border-radius: 4px; padding: 10px; margin-top: 8px; max-height: 300px; overflow-y: auto;
+    font-size: 0.8rem; white-space: pre-wrap; word-wrap: break-word; color: #ccffff;
+  }
+  #hud .enter-btn {
+    background: rgba(255, 0, 255, 0.2); border: 1px solid #ff00ff; color: #ff00ff;
+    padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-top: 8px;
+    font-size: 0.8rem; transition: all 0.2s;
+  }
+  #hud .enter-btn:hover { background: rgba(255, 0, 255, 0.4); box-shadow: 0 0 10px #ff00ff; }
+
+  /* Drag&Drop Overlay */
+  #drop-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 255, 255, 0.1); border: 4px dashed #00ffff;
+    display: none; z-index: 100; justify-content: center; align-items: center;
+    font-size: 2rem; color: #00ffff; text-shadow: 0 0 20px #00ffff;
+    pointer-events: none;
+  }
+  #drop-overlay.active { display: flex; }
+
+  /* Info bar – dolny lewy */
   #info {
     position: fixed; bottom: 12px; left: 12px; color: #00ffff; font-size: 0.75rem;
-    text-shadow: 0 0 4px #00ffff; pointer-events: none; opacity: 0.8;
-    z-index: 5;
+    text-shadow: 0 0 4px #00ffff; pointer-events: none; opacity: 0.8; z-index: 5;
+    line-height: 1.6;
   }
+
+  /* Speed indicator */
+  #speed-indicator {
+    position: fixed; bottom: 12px; right: 12px; color: #ff00ff; font-size: 0.9rem;
+    text-shadow: 0 0 8px #ff00ff; z-index: 5; font-family: monospace;
+  }
+
+  /* Loading */
   #loading {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    color: #00ffff; font-size: 1.5rem; text-shadow: 0 0 10px #00ffff;
-    z-index: 20; pointer-events: none;
+    color: #00ffff; font-size: 1.5rem; text-shadow: 0 0 20px #00ffff; z-index: 50;
   }
+
+  /* Modal import */
+  #import-modal {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(0, 10, 20, 0.95); border: 2px solid #00ffff; border-radius: 12px;
+    padding: 24px; z-index: 200; display: none; min-width: 300px;
+    box-shadow: 0 0 40px rgba(0, 255, 255, 0.3);
+  }
+  #import-modal h3 { color: #ff00ff; margin-bottom: 12px; text-shadow: 0 0 8px #ff00ff; }
+  #import-modal button {
+    background: rgba(0, 255, 255, 0.2); border: 1px solid #00ffff; color: #00ffff;
+    padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 8px; margin-top: 12px;
+  }
+  #import-modal button:hover { background: rgba(0, 255, 255, 0.4); }
 </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+<div id="loading">🚀 Inicjalizacja kokpitu Galaxy-Pilot v2.0...</div>
+<div id="drop-overlay">📁 UPUSC FOLDER/PLIKI TUTAJ</div>
+
+<div id="hud">
+  <span class="close" onclick="closeHud()">×</span>
+  <h2 id="hud-title">GWiazDA</h2>
+  <div class="row"><span class="label">Klasa:</span> <span id="hud-class">-</span></div>
+  <div class="row"><span class="label">Energia:</span> <span id="hud-energy">-</span></div>
+  <div class="row"><span class="label">Brief:</span> <span id="hud-brief">-</span></div>
+  <button class="enter-btn" onclick="expandContent()">⬇ WEJDZ W SZCZEGOLY</button>
+  <div class="content-box" id="hud-content" style="display:none;"></div>
+</div>
+
+<div id="import-modal">
+  <h3>📡 Nowy sektor wykryty</h3>
+  <p id="import-text">Znaleziono plików do zaimportowania.</p>
+  <button onclick="confirmImport()">✅ Importuj</button>
+  <button onclick="cancelImport()">❌ Anuluj</button>
+</div>
+
+<div id="info">
+  🎮 <b>WASD</b> – Lot | <b>Mysz</b> – Obrót | <b>Shift</b> – Hyperjump do gwiazdy<br>
+  <b>Space</b> – System Zoom (widok ogolny) | <b>Scroll</b> – Predkosc | <b>Click</b> – Skanuj gwiazde<br>
+  📁 <b>Drag&Drop</b> folderu – import nowego sektora
+</div>
+
+<div id="speed-indicator">SPEED: 1.0x</div>
+
 <script type="importmap">
 {
   "imports": {
@@ -41,19 +120,6 @@
   }
 }
 </script>
-</head>
-<body>
-<div id="canvas-container"></div>
-<div id="loading">Loading galaxy data...</div>
-<div id="hud">
-  <div class="close" id="hud-close">x</div>
-  <h2 id="hud-title">Node</h2>
-  <div class="row"><span class="label">Star Class:</span> <span id="hud-class"></span></div>
-  <div class="row"><span class="label">Energy Level:</span> <span id="hud-energy"></span></div>
-  <div class="row"><span class="label">Brief:</span> <span id="hud-brief"></span></div>
-  <div class="row"><span class="label">Tooltip:</span> <span id="hud-tooltip"></span></div>
-</div>
-<div id="info">Left click + drag to rotate &middot; Scroll to zoom &middot; Click node for HUD</div>
 
 <script type="module">
 import * as THREE from 'three';
@@ -62,178 +128,409 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
+// ═══════════════════════════════════════════════════════════════
+// KONFIGURACJA
+// ═══════════════════════════════════════════════════════════════
+const CONFIG = {
+  starSize: 2.5,
+  starColor: 0x00ffff,
+  lineColor: 0x00aaff,
+  lineOpacity: 0.25,
+  bloomStrength: 1.2,
+  bloomRadius: 0.5,
+  bloomThreshold: 0,
+  hyperjumpSpeed: 0.15,
+  normalSpeed: 0.8,
+  zoomSpeed: 0.05,
+  hudDistance: 80,
+  maxSpeed: 5.0,
+  minSpeed: 0.1
+};
+
+// ═══════════════════════════════════════════════════════════════
+// STAN KOKPITU
+// ═══════════════════════════════════════════════════════════════
+const state = {
+  keys: {}, mouse: { x: 0, y: 0, down: false },
+  speed: CONFIG.normalSpeed,
+  targetStar: null,
+  isHyperjump: false,
+  isZoomOut: false,
+  galaxyCenter: new THREE.Vector3(0, 0, 0),
+  velocity: new THREE.Vector3(0, 0, 0),
+  yaw: 0, pitch: 0,
+  droppedFiles: [],
+  selectedNode: null
+};
+
+// ═══════════════════════════════════════════════════════════════
+// SCENA
+// ═══════════════════════════════════════════════════════════════
 const container = document.getElementById('canvas-container');
-const hud = document.getElementById('hud');
-const hudTitle = document.getElementById('hud-title');
-const hudClass = document.getElementById('hud-class');
-const hudEnergy = document.getElementById('hud-energy');
-const hudBrief = document.getElementById('hud-brief');
-const hudTooltip = document.getElementById('hud-tooltip');
-const hudClose = document.getElementById('hud-close');
-const loading = document.getElementById('loading');
-
-// Scene
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000000);
+scene.fog = new THREE.FogExp2(0x000000, 0.0008);
 
-// Camera
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
-camera.position.set(0, 0, 1200);
+camera.position.set(0, 200, 600);
 
-// Renderer
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ReinhardToneMapping;
 container.appendChild(renderer.domElement);
 
-// Post-processing (Bloom)
-const renderScene = new RenderPass(scene, camera);
-const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-bloomPass.threshold = 0.1;
-bloomPass.strength = 1.2;
-bloomPass.radius = 0.5;
-
+// Postprocessing – Bloom
 const composer = new EffectComposer(renderer);
-composer.addPass(renderScene);
+const renderPass = new RenderPass(scene, camera);
+composer.addPass(renderPass);
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), CONFIG.bloomStrength, CONFIG.bloomRadius, CONFIG.bloomThreshold);
 composer.addPass(bloomPass);
 
-// Controls
+// Kontrola (fallback – główne sterowanie to WASD+custom)
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
-controls.zoomSpeed = 1.2;
+controls.enablePan = false;
+controls.enabled = false; // Domyślnie wyłączone – WASD takeover
 
-// Raycaster
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
+// ═══════════════════════════════════════════════════════════════
+// TŁO – GWIAZDY
+// ═══════════════════════════════════════════════════════════════
+const starGeo = new THREE.BufferGeometry();
+const starCount = 3000;
+const starPos = new Float32Array(starCount * 3);
+for (let i = 0; i < starCount * 3; i++) {
+  starPos[i] = (Math.random() - 0.5) * 4000;
+}
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+const starMat = new THREE.PointsMaterial({ color: 0x444444, size: 1.5, transparent: true, opacity: 0.6 });
+scene.add(new THREE.Points(starGeo, starMat));
 
-// Node map for click lookup
-const nodeMeshes = [];
-const nodeDataMap = new Map();
+// Światło ambient
+scene.add(new THREE.AmbientLight(0x111111));
 
-// Data paths
+// ═══════════════════════════════════════════════════════════════
+// ŁADOWANIE DANYCH GALAKTYKI
+// ═══════════════════════════════════════════════════════════════
 const GALAXY_URL = '../data/output/galaxy_data.json';
 const META_URL = '../data/output/metadata.json';
 
+let galaxyData = null;
+let metaData = {};
+let nodes = [];
+let edges = [];
+let nodeMeshes = [];
+let nodeDataMap = new Map();
+let raycaster = new THREE.Raycaster();
+let mouseVector = new THREE.Vector2();
+
 async function loadData() {
   try {
-    const [galaxyRes, metaRes] = await Promise.all([
-      fetch(GALAXY_URL),
-      fetch(META_URL)
-    ]);
-    if (!galaxyRes.ok) throw new Error('Failed to load galaxy_data.json');
-    if (!metaRes.ok) throw new Error('Failed to load metadata.json');
-    const galaxyData = await galaxyRes.json();
-    const metaData = await metaRes.json();
-    buildScene(galaxyData, metaData);
-    loading.style.display = 'none';
-  } catch (err) {
-    loading.textContent = 'Error: ' + err.message;
-    console.error(err);
+    const [gRes, mRes] = await Promise.all([fetch(GALAXY_URL), fetch(META_URL)]);
+    if (!gRes.ok) throw new Error('Failed to load galaxy_data.json');
+    if (!mRes.ok) throw new Error('Failed to load metadata.json');
+    galaxyData = await gRes.json();
+    metaData = await mRes.json();
+    buildScene();
+    document.getElementById('loading').style.display = 'none';
+  } catch (e) {
+    document.getElementById('loading').innerHTML = `❌ Blad ladowania: ${e.message}<br><small>Sprawdz czy serwer jest uruchomiony (python -m http.server)</small>`;
+    console.error(e);
   }
 }
 
-function buildScene(galaxyData, metaData) {
-  // Normalize nodes
-  let nodes = [];
-  if (Array.isArray(galaxyData.nodes)) {
-    nodes = galaxyData.nodes;
-  } else if (galaxyData.nodes && typeof galaxyData.nodes === 'object') {
-    nodes = Object.entries(galaxyData.nodes).map(([id, n]) => ({ id, ...n }));
-  }
+// ═══════════════════════════════════════════════════════════════
+// BUDOWA SCENY
+// ═══════════════════════════════════════════════════════════════
+function buildScene() {
+  const nodeDict = galaxyData.nodes || galaxyData;
+  const edgeList = galaxyData.edges || [];
 
-  const nodeMap = new Map();
-  nodes.forEach(n => {
-    const val = n.val ?? n.degree ?? 1;
-    const color = n.color ?? '#00ffff';
-    const x = n.x ?? 0;
-    const y = n.y ?? 0;
-    const z = n.z ?? 0;
-
-    // Sphere
-    const radius = Math.max(3, Math.min(20, 3 + val * 1.5));
-    const geometry = new THREE.SphereGeometry(radius, 32, 32);
-    const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(color) });
+  // Nodes
+  Object.entries(nodeDict).forEach(([id, n]) => {
+    const geometry = new THREE.SphereGeometry(CONFIG.starSize * (n.val || 1) * 0.5, 16, 16);
+    const color = n.color || '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
+    const material = new THREE.MeshBasicMaterial({ color: color });
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(x, y, z);
+    mesh.position.set(n.x || 0, n.y || 0, n.z || 0);
     scene.add(mesh);
 
+    // Glow sprite
+    const spriteMat = new THREE.SpriteMaterial({
+      color: color, transparent: true, opacity: 0.4,
+      blending: THREE.AdditiveBlending
+    });
+    const sprite = new THREE.Sprite(spriteMat);
+    sprite.scale.set(15, 15, 1);
+    mesh.add(sprite);
+
     nodeMeshes.push(mesh);
-    nodeMap.set(n.id, mesh);
-    nodeDataMap.set(mesh, { id: n.id, meta: metaData[n.id] || {} });
+    const meta = metaData[id] || {};
+    nodeDataMap.set(mesh, { id, meta, data: n });
+    nodes.push({ id, mesh, ...n });
   });
 
   // Edges
-  const edges = galaxyData.edges || [];
-  const lineMaterial = new THREE.LineBasicMaterial({
-    color: 0x00ffff,
-    transparent: true,
-    opacity: 0.35,
-    blending: THREE.AdditiveBlending
-  });
-
-  edges.forEach(e => {
-    const src = nodeMap.get(e.source);
-    const tgt = nodeMap.get(e.target);
-    if (!src || !tgt) return;
-
-    const points = [src.position.clone(), tgt.position.clone()];
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const line = new THREE.Line(geometry, lineMaterial);
-    scene.add(line);
-  });
-
-  // Optional ambient particles
-  const particlesGeo = new THREE.BufferGeometry();
-  const particleCount = 2000;
-  const posArray = new Float32Array(particleCount * 3);
-  for (let i = 0; i < particleCount * 3; i++) {
-    posArray[i] = (Math.random() - 0.5) * 4000;
-  }
-  particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-  const particlesMat = new THREE.PointsMaterial({
-    color: 0xffffff, size: 1.5, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending
-  });
-  const particles = new THREE.Points(particlesGeo, particlesMat);
-  scene.add(particles);
-}
-
-// Click handling
-function onMouseClick(event) {
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-  raycaster.setFromCamera(mouse, camera);
-  const intersects = raycaster.intersectObjects(nodeMeshes);
-
-  if (intersects.length > 0) {
-    const mesh = intersects[0].object;
-    const info = nodeDataMap.get(mesh);
-    if (info && info.meta) {
-      showHud(info.id, info.meta);
+  edgeList.forEach(e => {
+    const src = nodes.find(n => n.id === e.source);
+    const tgt = nodes.find(n => n.id === e.target);
+    if (src && tgt) {
+      const pts = [src.mesh.position.clone(), tgt.mesh.position.clone()];
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineBasicMaterial({ color: CONFIG.lineColor, transparent: true, opacity: CONFIG.lineOpacity, blending: THREE.AdditiveBlending });
+      scene.add(new THREE.Line(geo, mat));
     }
-  } else {
-    hideHud();
+  });
+
+  // Oblicz centrum galaktyki
+  const box = new THREE.Box3().setFromObject(scene);
+  box.getCenter(state.galaxyCenter);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STEROWANIE STATKIEM (WASD + MYSZ)
+// ═══════════════════════════════════════════════════════════════
+function setupControls() {
+  // Klawiatura
+  window.addEventListener('keydown', e => {
+    state.keys[e.code] = true;
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') hyperjump();
+    if (e.code === 'Space') systemZoom();
+    if (e.code === 'KeyC') closeHud();
+  });
+  window.addEventListener('keyup', e => state.keys[e.code] = false);
+
+  // Mysz – obrót (tylko gdy kliknięty LPM)
+  window.addEventListener('mousemove', e => {
+    if (state.mouse.down) {
+      const dx = e.movementX * 0.002;
+      const dy = e.movementY * 0.002;
+      state.yaw -= dx;
+      state.pitch -= dy;
+      state.pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, state.pitch));
+    }
+    state.mouse.x = e.clientX;
+    state.mouse.y = e.clientY;
+  });
+  window.addEventListener('mousedown', e => { if (e.button === 0) state.mouse.down = true; });
+  window.addEventListener('mouseup', e => { if (e.button === 0) state.mouse.down = false; });
+
+  // Scroll – prędkość
+  window.addEventListener('wheel', e => {
+    state.speed += e.deltaY * -0.001;
+    state.speed = Math.max(CONFIG.minSpeed, Math.min(CONFIG.maxSpeed, state.speed));
+    updateSpeedIndicator();
+  });
+
+  // Click – skanowanie gwiazdy
+  window.addEventListener('click', e => {
+    if (e.target.closest('#hud') || e.target.closest('#import-modal')) return;
+    mouseVector.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouseVector.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouseVector, camera);
+    const hits = raycaster.intersectObjects(nodeMeshes);
+    if (hits.length > 0) {
+      const data = nodeDataMap.get(hits[0].object);
+      if (data) openHud(data);
+    }
+  });
+}
+
+function updateSpeedIndicator() {
+  document.getElementById('speed-indicator').textContent = `SPEED: ${state.speed.toFixed(1)}x`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FIZYKA LOTU
+// ═══════════════════════════════════════════════════════════════
+function updateFlight() {
+  if (state.isHyperjump && state.targetStar) {
+    // Hyperjump – płynny dolot do gwiazdy
+    const target = state.targetStar.mesh.position;
+    const dir = new THREE.Vector3().subVectors(target, camera.position);
+    const dist = dir.length();
+    if (dist < CONFIG.hudDistance) {
+      state.isHyperjump = false;
+      state.speed = CONFIG.normalSpeed;
+      openHud(state.targetStar);
+      return;
+    }
+    dir.normalize();
+    camera.position.add(dir.multiplyScalar(dist * CONFIG.hyperjumpSpeed));
+    camera.lookAt(target);
+    return;
+  }
+
+  if (state.isZoomOut) {
+    // System Zoom – powrót do widoku ogólnego
+    const dir = new THREE.Vector3().subVectors(state.galaxyCenter, camera.position);
+    const dist = dir.length();
+    if (dist > 800) {
+      state.isZoomOut = false;
+      state.speed = CONFIG.normalSpeed;
+      return;
+    }
+    dir.normalize();
+    camera.position.sub(dir.multiplyScalar(20));
+    camera.lookAt(state.galaxyCenter);
+    return;
+  }
+
+  // Swobodny lot WASD
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+
+  const vel = new THREE.Vector3(0, 0, 0);
+  if (state.keys['KeyW']) vel.add(forward);
+  if (state.keys['KeyS']) vel.sub(forward);
+  if (state.keys['KeyA']) vel.sub(right);
+  if (state.keys['KeyD']) vel.add(right);
+  if (state.keys['KeyQ']) vel.add(up);
+  if (state.keys['KeyE']) vel.sub(up);
+
+  if (vel.length() > 0) {
+    vel.normalize().multiplyScalar(state.speed);
+    camera.position.add(vel);
+  }
+
+  // Obrót myszą (pitch/yaw)
+  const euler = new THREE.Euler(state.pitch, state.yaw, 0, 'YXZ');
+  camera.quaternion.setFromEuler(euler);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HYPERJUMP & SYSTEM ZOOM
+// ═══════════════════════════════════════════════════════════════
+function hyperjump() {
+  if (!state.selectedNode) return;
+  state.isHyperjump = true;
+  state.isZoomOut = false;
+  state.targetStar = state.selectedNode;
+  state.speed = CONFIG.maxSpeed * 2;
+  updateSpeedIndicator();
+}
+
+function systemZoom() {
+  state.isZoomOut = true;
+  state.isHyperjump = false;
+  state.speed = CONFIG.maxSpeed;
+  updateSpeedIndicator();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HUD
+// ═══════════════════════════════════════════════════════════════
+window.openHud = function(data) {
+  state.selectedNode = data;
+  const hud = document.getElementById('hud');
+  const meta = data.meta || {};
+  document.getElementById('hud-title').textContent = data.id;
+  document.getElementById('hud-class').textContent = meta.star_class || 'Standard';
+  document.getElementById('hud-energy').textContent = meta.energy_level || 'Srednia';
+  document.getElementById('hud-brief').textContent = meta.brief || meta.tooltip || 'Brak danych';
+  document.getElementById('hud-content').style.display = 'none';
+  document.getElementById('hud-content').textContent = '';
+  hud.style.display = 'block';
+};
+
+window.closeHud = function() {
+  document.getElementById('hud').style.display = 'none';
+  state.selectedNode = null;
+};
+
+window.expandContent = function() {
+  const box = document.getElementById('hud-content');
+  if (box.style.display === 'block') {
+    box.style.display = 'none';
+    return;
+  }
+  if (state.selectedNode && state.selectedNode.meta) {
+    const content = JSON.stringify(state.selectedNode.meta, null, 2);
+    box.textContent = content;
+    box.style.display = 'block';
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// DRAG & DROP IMPORTER
+// ═══════════════════════════════════════════════════════════════
+function setupDragDrop() {
+  const overlay = document.getElementById('drop-overlay');
+
+  window.addEventListener('dragenter', e => { e.preventDefault(); overlay.classList.add('active'); });
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('dragleave', e => { if (e.relatedTarget === null) overlay.classList.remove('active'); });
+  window.addEventListener('drop', e => {
+    e.preventDefault();
+    overlay.classList.remove('active');
+    const items = e.dataTransfer.items;
+    state.droppedFiles = [];
+
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i].webkitGetAsEntry();
+        if (item) traverseFileTree(item, '');
+      }
+    }
+    if (state.droppedFiles.length > 0) {
+      showImportModal(state.droppedFiles.length);
+    }
+  });
+}
+
+function traverseFileTree(item, path) {
+  if (item.isFile) {
+    item.file(file => {
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (['md', 'py', 'js', 'txt', 'json', 'html', 'css'].includes(ext)) {
+        state.droppedFiles.push({ name: file.name, path: path + file.name, file });
+      }
+    });
+  } else if (item.isDirectory) {
+    const dirReader = item.createReader();
+    dirReader.readEntries(entries => {
+      entries.forEach(entry => traverseFileTree(entry, path + item.name + '/'));
+    });
   }
 }
 
-function showHud(id, meta) {
-  hudTitle.textContent = id;
-  hudClass.textContent = meta.star_class ?? '-';
-  hudEnergy.textContent = meta.energy_level ?? '-';
-  hudBrief.textContent = meta.brief ?? '-';
-  hudTooltip.textContent = meta.tooltip ?? '-';
-  hud.style.display = 'block';
+function showImportModal(count) {
+  document.getElementById('import-text').textContent = `Znaleziono ${count} plików do zaimportowania jako nowy sektor.`;
+  document.getElementById('import-modal').style.display = 'block';
 }
 
-function hideHud() {
-  hud.style.display = 'none';
+window.confirmImport = function() {
+  document.getElementById('import-modal').style.display = 'none';
+  // Zapisz w localStorage i przeładuj
+  localStorage.setItem('galaxy_pending_import', JSON.stringify(state.droppedFiles.map(f => f.name)));
+  alert('Import zapisany. Uruchom pipeline (python main.py) aby przetworzyc nowe pliki.');
+};
+
+window.cancelImport = function() {
+  document.getElementById('import-modal').style.display = 'none';
+  state.droppedFiles = [];
+};
+
+// ═══════════════════════════════════════════════════════════════
+// PĘTLA GŁÓWNA
+// ═══════════════════════════════════════════════════════════════
+function animate() {
+  requestAnimationFrame(animate);
+  updateFlight();
+
+  // Animacja gwiazd (subtelny puls)
+  nodeMeshes.forEach((mesh, i) => {
+    const scale = 1 + Math.sin(Date.now() * 0.001 + i) * 0.1;
+    mesh.scale.setScalar(scale);
+  });
+
+  composer.render();
 }
 
-window.addEventListener('click', onMouseClick);
-hudClose.addEventListener('click', (e) => { e.stopPropagation(); hideHud(); });
-
-// Resize
+// ═══════════════════════════════════════════════════════════════
+// START
+// ═══════════════════════════════════════════════════════════════
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -241,15 +538,10 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Animation loop
-function animate() {
-  requestAnimationFrame(animate);
-  controls.update();
-  composer.render();
-}
-
-animate();
+setupControls();
+setupDragDrop();
 loadData();
+animate();
 </script>
 </body>
 </html>
