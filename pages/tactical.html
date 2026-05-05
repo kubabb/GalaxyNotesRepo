@@ -171,8 +171,8 @@
 
 <!-- Telemetry -->
 <div id="telemetry">
-  W/S – Ciąg | A/D – Strafe | R/F – Wysokość | Q/E – Roll<br>
-  PPM – Lot (Pitch/Yaw) | LPM – Leć do punktu/gwiazdy | Shift – Warp | TAB – Czułość | C/ESC – Anuluj
+  W/S – Ciąg | A/D – Obrót (Yaw) | R/F – Wysokość | Q/E – Roll<br>
+  PPM – Obrót kamery (Orbit) | Scroll – Zoom | LPM – Leć do punktu/gwiazdy | Shift – Warp | TAB – Czułość | C/ESC – Anuluj
 </div>
 
 <!-- Loading -->
@@ -218,9 +218,15 @@ const S = {
   acceleration: 0.15,
   drag: 0.94,
   maxVelocity: 12.0,
-  sensMode: 1, // 0=low, 1=normal, 2=high
+  sensMode: 1,
   clickTarget: null,
   clickNavActive: false,
+  // Orbit camera params
+  camAzimuth: Math.PI * 0.25,
+  camElevation: Math.PI * 0.35,
+  camDistance: 180,
+  camMinDist: 60,
+  camMaxDist: 600,
 };
 
 // ─── SCENE ───
@@ -282,11 +288,8 @@ const ship = createShip();
 ship.scale.setScalar(6);
 scene.add(ship);
 
-// ─── CAMERA (independent, follows ship) ───
-// Kamera NIE jest dzieckiem statku – patrzy NA statek z zewnątrz.
-// Dzięki temu statek jest widoczny jako model 3D latający nad galaktyką.
-const CAM_OFFSET = new THREE.Vector3(140, 220, 140);
-camera.position.copy(CAM_OFFSET);
+// ─── CAMERA (orbit around ship) ───
+// Myszka obraca kamerę wokół statku (orbit), nie statek.
 scene.add(camera);
 
 // ─── STARFIELD ───
@@ -479,8 +482,8 @@ function generateFallbackGalaxy() {
     S.meta[id] = { star_class: 'Fallback', energy_level: 'Standardowa', brief: 'Gwiazda generowana proceduralnie.', file: id };
   }
   ship.position.set(0, 80, 0);
-  ship.rotation.set(-Math.PI/2, 0, 0);
-  console.log('[WIZJER] Fallback gotowy. Statek nad płaszczyzną (0,80,0).');
+  ship.rotation.set(0, 0, 0);
+  console.log('[WIZJER] Fallback gotowy. Statek nad płaszczyzną (0,80,0), patrzy na -Z.');
 }
 
 function buildGalaxy(galaxyData) {
@@ -520,9 +523,9 @@ function buildGalaxy(galaxyData) {
     }
   });
 
-  // Position ship above the galaxy plane looking down
+  // Position ship above the galaxy plane, facing forward (-Z)
   ship.position.set(0, 80, 0);
-  ship.rotation.set(-Math.PI/2, 0, 0);
+  ship.rotation.set(0, 0, 0);
 }
 
 // ─── INPUT ───
@@ -547,12 +550,14 @@ window.addEventListener('keyup', e => {
 
 window.addEventListener('mousemove', e => {
   if(S.mouseDownRight) {
-    S.myDelta += e.movementY;
-    S.mxDelta += e.movementX;
+    // Orbit camera: mouse moves azimuth/elevation
+    S.camAzimuth -= e.movementX * CFG.mouseSensitivity * 0.5;
+    S.camElevation += e.movementY * CFG.mouseSensitivity * 0.5;
+    S.camElevation = Math.max(0.05, Math.min(Math.PI/2 - 0.05, S.camElevation));
   }
 });
 window.addEventListener('mousedown', e => {
-  if(e.button===2) { S.mouseDownRight=true; canvas.style.cursor='none'; document.getElementById('flight-mode').textContent='TRYB: LOT (Pitch/Yaw)'; }
+  if(e.button===2) { S.mouseDownRight=true; canvas.style.cursor='none'; document.getElementById('flight-mode').textContent='TRYB: KAMERA (Orbit)'; }
   if(e.button===0) {
     if(!e.target.closest('#hud-panel') && !e.target.closest('#terminal-modal') && !e.target.closest('#sidebar') && !e.target.closest('#topbar')) {
       const ndcX = (e.clientX / window.innerWidth) * 2 - 1;
@@ -565,6 +570,10 @@ window.addEventListener('mouseup', e => {
   if(e.button===2) { S.mouseDownRight=false; canvas.style.cursor='crosshair'; document.getElementById('flight-mode').textContent='TRYB: MANUALNY'; }
 });
 window.addEventListener('contextmenu', e => e.preventDefault());
+window.addEventListener('wheel', e => {
+  S.camDistance += e.deltaY * 0.15;
+  S.camDistance = Math.max(S.camMinDist, Math.min(S.camMaxDist, S.camDistance));
+});
 
 // ─── RAYCASTING ───
 const raycaster = new THREE.Raycaster();
@@ -686,31 +695,21 @@ function updateFlight() {
     return;
   }
 
-  // Pitch / Yaw from mouse delta (RMB hold) – clamped
-  if(S.mxDelta !== 0 || S.myDelta !== 0) {
-    ship.rotateX(-S.myDelta * CFG.mouseSensitivity);
-    ship.rotateY(-S.mxDelta * CFG.mouseSensitivity);
-    S.mxDelta = 0;
-    S.myDelta = 0;
-    // Clamp pitch (X rotation) so ship never flips upside-down
-    const euler = new THREE.Euler().setFromQuaternion(ship.quaternion, 'YXZ');
-    euler.x = Math.max(-1.4, Math.min(1.4, euler.x));
-    ship.quaternion.setFromEuler(euler);
-  }
+  // Yaw (A/D) – rotate ship horizontally
+  if(S.keys['KeyA']) ship.rotateY(CFG.rollSpeed * 1.5);
+  if(S.keys['KeyD']) ship.rotateY(-CFG.rollSpeed * 1.5);
 
-  // Roll (clamped, auto-levels when keys released)
+  // Roll (Q/E) – clamped, auto-levels
   const euler = new THREE.Euler().setFromQuaternion(ship.quaternion, 'YXZ');
   if(S.keys['KeyQ']) euler.z = Math.min(euler.z + CFG.rollSpeed, 0.6);
   else if(S.keys['KeyE']) euler.z = Math.max(euler.z - CFG.rollSpeed, -0.6);
-  else euler.z *= 0.92; // auto-level roll when not holding keys
+  else euler.z *= 0.92;
   ship.quaternion.setFromEuler(euler);
 
   // Thrust in local space
   const thrust = new THREE.Vector3(0, 0, 0);
   if(S.keys['KeyW']) thrust.z -= 1;
   if(S.keys['KeyS']) thrust.z += 1;
-  if(S.keys['KeyA']) thrust.x -= 1;
-  if(S.keys['KeyD']) thrust.x += 1;
   if(S.keys['KeyR']) thrust.y += 1;
   if(S.keys['KeyF']) thrust.y -= 1;
 
@@ -737,25 +736,23 @@ function updateFlight() {
   // Move ship by velocity
   if(vlen > 0.01) {
     ship.position.add(S.velocity);
-    // Emit particles proportional to speed
     const particleChance = Math.min(vlen / maxSpd, 1.0) * 0.6;
     if(Math.random() < particleChance) emitParticle();
   }
-
-  // Bank/tilt based on velocity (visual feedback)
-  const localVel = S.velocity.clone().applyQuaternion(ship.quaternion.clone().invert());
-  const targetTiltZ = -localVel.x * 0.08;
-  const targetTiltX = localVel.z * 0.03;
-  ship.rotation.z += (targetTiltZ - ship.rotation.z) * 0.08;
 
   updateCrosshair();
   updateSpeedHUD();
 }
 
-// ─── CAMERA FOLLOW (external, looks at ship) ───
+// ─── CAMERA ORBIT (around ship) ───
 function updateCamera() {
-  const targetPos = ship.position.clone().add(CAM_OFFSET);
-  camera.position.lerp(targetPos, 0.06);
+  const offset = new THREE.Vector3(
+    Math.sin(S.camElevation) * Math.cos(S.camAzimuth),
+    Math.cos(S.camElevation),
+    Math.sin(S.camElevation) * Math.sin(S.camAzimuth)
+  ).multiplyScalar(S.camDistance);
+  const targetPos = ship.position.clone().add(offset);
+  camera.position.lerp(targetPos, 0.1);
   camera.lookAt(ship.position);
 }
 
