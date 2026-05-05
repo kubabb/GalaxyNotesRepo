@@ -8,6 +8,7 @@ Uruchomienie:
     python main.py
     python main.py --brain "C:/path/to/vault"   # override default vault
     python main.py --push                         # dodatkowo git-push
+    python main.py --import "C:/path/to/notes"    # importuj notatki do data/inbox/
 """
 import argparse
 import sys
@@ -26,6 +27,7 @@ import metadata_engine
 import debugger
 import librarian
 import git_manager
+import importer
 
 
 def main():
@@ -33,6 +35,8 @@ def main():
     parser.add_argument("--push", action="store_true", help="Wypchnij wyniki na GitHub po zakończeniu")
     parser.add_argument("--brain", type=str, default=r"C:\Users\kubar\OneDrive\Dokumenty\BRAIN",
                         help="Ścieżka do vaultu Obsidian")
+    parser.add_argument("--import", dest="import_folder", type=str, default=None,
+                        help="Importuj notatki z podanego folderu do data/inbox/ przed pipeline")
     args = parser.parse_args()
 
     brain_path = Path(args.brain)
@@ -44,6 +48,19 @@ def main():
     except SystemExit as e:
         print(f"[MAIN] Start zablokowany przez SECURITY-OFFICER (kod: {e.code})")
         sys.exit(e.code)
+
+    # 1b. IMPORTER – opcjonalny import notatek przed pipeline
+    if args.import_folder:
+        import_folder = Path(args.import_folder)
+        if import_folder.exists():
+            print("\n=== FAZA 1b: IMPORTER ===")
+            result = pipeline_guard.run("IMPORTER", importer.import_folder, import_folder)
+            if result and result.get("imported", 0) > 0:
+                brain_path = PROJECT_ROOT / "data" / "inbox"
+            else:
+                print("[MAIN] Import nie powiódł się lub brak plików. Używam domyślnego vault.")
+        else:
+            print(f"[MAIN] Folder do importu nie istnieje: {import_folder}")
 
     # 2. RÓWNOLEGŁE AGENTY: ASTRONOMER + STORYTELLER + LIBRARIAN
     print("\n=== FAZA 2-4: RÓWNOLEGŁE AGENTY (ASTRONOMER || STORYTELLER || LIBRARIAN) ===")
