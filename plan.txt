@@ -151,3 +151,35 @@ W kokpicie 3D (dist/index.html) zaimplementuj:
    - Wyświetl modal: „Znaleziono X plików. Zaimportować?"
    - Po akceptacji: wyślij do backendu (fetch POST do lokalnego serwera) lub zapisz w IndexedDB.
 4. Alternatywa bez backendu: zapisz w localStorage/IndexedDB i przeładuj galaxy_data.json.
+
+================================================================================
+STATUS WYKONANIA – EMERGENCY UPDATE v2.2
+================================================================================
+
+Data: 2026-05-05
+
+ZREALIZOWANE:
+✅ ARCHITECT – UI_UX_Standard.md w BRAIN (paleta HEX, fonty Monospace, bloom, scanlines)
+✅ CODER – Kokpit 3D v2.2:
+   • Landing/onboarding SPA (fade-in do kokpitu)
+   • Model statku 3D (wireframe neon) z tilt przy skrętach
+   • Crosshair taktyczny z lock-on (magenta gdy cel zablokowany)
+   • Warp Drive – Shift zwiększa FOV do 120° + motion blur
+   • HUD z realną treścią .md (pola content z metadata.json)
+   • Przycisk "WEJDŹ W SZCZEGÓŁY" -> pełnoekranowy terminal (blokuje ruch)
+   • Przycisk powrotu "[ ← POWRÓT DO KOKPITU ]" z terminala
+   • Scanlines, bloom, glitch-hover, tech-border – zgodne z ARCHITECT
+✅ STORYTELLER – Brief 2.0 (bez JSON, styl raportu misji), content field
+✅ ASTRONOMER – Gwiazdy na płaszczyźnie (Z ±9), 56 węzłów, 83 krawędzie
+✅ DEBUGGER – Wszystkie testy PASS (landing, cockpit, Three.js, HUD, terminal, crosshair, scanlines, bloom)
+✅ WATCHMAN – Force LOCAL MODE (API rate limit), monitoring backoff
+✅ SECURITY-OFFICER – design/ w .gitignore, config/.env chroniony
+✅ GIT-PUSHER – Push v2.2 SUCCESSFUL (commit 63a793c)
+
+ZNANE PROBLEMY:
+⚠️ OpenRouter API (gemma-4-26b-a4b-it:free) – rate limit 50 req/day lub per-min.
+   ROZWIĄZANIE: WATCHMAN force LOCAL MODE. Retry logic działa ale limit trwały.
+   REKOMENDACJA: Przejście na płatny tier lub inny model.
+
+REPO: https://github.com/kubabb/GalaxyNotesRepo (branch: main)
+

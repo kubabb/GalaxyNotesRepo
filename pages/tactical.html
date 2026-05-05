@@ -107,7 +107,10 @@
 <!-- Top Bar -->
 <div id="topbar">
   <div class="font-mono text-xs text-[#00f3ff] tracking-widest uppercase">Wizjer Taktyczny // Moduł Nawigacji 3D</div>
-  <div class="font-mono text-[10px] text-[#849495]">6DOF ACTIVE // RMB: LOT // LPM: SKANUJ</div>
+  <div class="flex items-center gap-3">
+    <button id="scan-btn" class="font-mono text-[10px] text-[#00f3ff] border border-[#00f3ff]/40 px-3 py-1 hover:bg-[#00f3ff]/20 hover:shadow-[0_0_10px_rgba(0,243,255,0.3)] transition uppercase tracking-wider" onclick="triggerScan()">⚡ RE-SKAN</button>
+    <div class="font-mono text-[10px] text-[#849495]">6DOF ACTIVE // RMB: LOT // LPM: SKANUJ</div>
+  </div>
 </div>
 
 <!-- 3D Canvas -->
@@ -147,6 +150,21 @@
   <div id="terminal-body"></div>
 </div>
 
+<!-- Scan Modal -->
+<div id="scan-modal" style="display:none; position:fixed; inset:0; z-index:300; background:rgba(0,0,0,0.92); backdrop-filter:blur(8px); align-items:center; justify-content:center;">
+  <div class="tech-border bloom-border p-6 max-w-md bg-[#0a0a0a] border border-[#00f3ff] relative">
+    <span class="close-btn" onclick="closeScanModal()">×</span>
+    <h2 class="font-headline text-[#00f3ff] text-lg mb-4 bloom-text tracking-wider">RE-SKAN PROJEKTU</h2>
+    <p class="font-mono text-xs text-[#b9cacb] mb-4 leading-relaxed">Aby wygenerować nowe dane galaktyki, uruchom w terminalu PowerShell:</p>
+    <code class="font-mono text-xs bg-[#1f1f1f] p-3 block mb-4 text-[#00f3ff] border border-[#3a494b] tracking-wide select-all">python main.py</code>
+    <p class="font-mono text-xs text-[#b9cacb] mb-5 leading-relaxed">Po zakończeniu kliknij poniżej, aby odświeżyć dane w kokpicie.</p>
+    <div class="flex gap-3">
+      <button class="enter-btn" onclick="refreshData()">🔄 ODŚWIEŻ DANE</button>
+      <button class="enter-btn" style="border-color:#849495; color:#849495;" onclick="closeScanModal()">ZAMKNIJ</button>
+    </div>
+  </div>
+</div>
+
 <!-- Speed HUD -->
 <div id="speed-hud">MANUALNY<br>PRĘDKOŚĆ: 2.0</div>
 
@@ -173,13 +191,13 @@ import * as THREE from 'three';
 
 // ─── CONFIG ───
 const CFG = {
-  starSize: 2.0, starGlow: 16,
+  starSize: 6.0, starGlow: 40,
   lineColor: 0x00aaff, lineOpacity: 0.2,
   speed: 2.0, maxSpeed: 5.0, warpSpeed: 18.0,
   rollSpeed: 0.025,
   mouseSensitivity: 0.002,
   navStopDist: 35,
-  fogDensity: 0.00025,
+  fogDensity: 0.00012,
 };
 
 // ─── STATE ───
@@ -287,6 +305,68 @@ function createGlowTexture() {
 }
 const glowTexture = createGlowTexture();
 
+// ─── ENGINE PARTICLES ───
+const engineParticles = [];
+const engineGeo = new THREE.SphereGeometry(0.25, 4, 4);
+function emitParticle() {
+  const offsetL = new THREE.Vector3(-2, 0, 5).applyQuaternion(ship.quaternion);
+  const offsetR = new THREE.Vector3(2, 0, 5).applyQuaternion(ship.quaternion);
+  [offsetL, offsetR].forEach(off => {
+    const p = new THREE.Mesh(engineGeo, new THREE.MeshBasicMaterial({ color: 0x00f3ff, transparent: true, opacity: 0.8 }));
+    p.position.copy(ship.position).add(off).add(new THREE.Vector3((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4));
+    p.userData = { life: 1.0, decay: 0.025 + Math.random()*0.02 };
+    scene.add(p);
+    engineParticles.push(p);
+  });
+}
+function updateParticles() {
+  for(let i = engineParticles.length - 1; i >= 0; i--) {
+    const p = engineParticles[i];
+    p.userData.life -= p.userData.decay;
+    p.material.opacity = p.userData.life * 0.8;
+    p.scale.setScalar(0.3 + p.userData.life * 0.7);
+    if(p.userData.life <= 0) {
+      scene.remove(p);
+      p.material.dispose();
+      engineParticles.splice(i, 1);
+    }
+  }
+}
+
+// ─── SPEED LINES (warp effect) ───
+const speedLineGeo = new THREE.BufferGeometry();
+const speedLineCount = 200;
+const speedLinePos = new Float32Array(speedLineCount * 3);
+for(let i=0;i<speedLineCount*3;i++) speedLinePos[i]=(Math.random()-0.5)*300;
+speedLineGeo.setAttribute('position', new THREE.BufferAttribute(speedLinePos, 3));
+const speedLineMat = new THREE.PointsMaterial({ color: 0x00f3ff, size: 2.0, transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false });
+const speedLines = new THREE.Points(speedLineGeo, speedLineMat);
+scene.add(speedLines);
+
+function updateSpeedLines() {
+  const positions = speedLineGeo.attributes.position.array;
+  const isMoving = S.currentSpeed > CFG.speed * 0.8 || S.navActive;
+  speedLineMat.opacity = THREE.MathUtils.lerp(speedLineMat.opacity, isMoving ? 0.5 : 0.0, 0.08);
+  if(!isMoving) return;
+  const spd = S.currentSpeed * 1.2;
+  const shipDir = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
+  for(let i=0;i<speedLineCount;i++) {
+    const ix = i*3;
+    positions[ix]   -= shipDir.x * spd;
+    positions[ix+1] -= shipDir.y * spd;
+    positions[ix+2] -= shipDir.z * spd;
+    const dx = positions[ix]   - (ship.position.x + shipDir.x*20);
+    const dy = positions[ix+1] - (ship.position.y + shipDir.y*20);
+    const dz = positions[ix+2] - (ship.position.z + shipDir.z*20);
+    if(dx*dx + dy*dy + dz*dz > 50000) {
+      positions[ix]   = ship.position.x + shipDir.x*20 + (Math.random()-0.5)*300;
+      positions[ix+1] = ship.position.y + shipDir.y*20 + (Math.random()-0.5)*300;
+      positions[ix+2] = ship.position.z + shipDir.z*20 + (Math.random()-0.5)*300;
+    }
+  }
+  speedLineGeo.attributes.position.needsUpdate = true;
+}
+
 // ─── LOAD GALAXY ───
 async function loadGalaxy() {
   try {
@@ -317,7 +397,7 @@ function generateFallbackGalaxy() {
     const x = (Math.random()-0.5)*1200;
     const y = (Math.random()-0.5)*1200;
     const z = (Math.random()-0.5)*800;
-    const size = CFG.starSize * Math.min((Math.random()*4)+1, 5) * 0.45;
+    const size = CFG.starSize * Math.min((Math.random()*4)+1, 5) * 1.2;
     const color = new THREE.Color(colors[i % colors.length]);
     const geo = new THREE.SphereGeometry(size, 12, 12);
     const mat = new THREE.MeshBasicMaterial({ color });
@@ -326,7 +406,7 @@ function generateFallbackGalaxy() {
     scene.add(mesh);
 
     const sprMat = new THREE.SpriteMaterial({
-      map: glowTexture, color, transparent: true, opacity: 0.4,
+      map: glowTexture, color, transparent: true, opacity: 0.7,
       blending: THREE.AdditiveBlending, depthWrite: false
     });
     const sprite = new THREE.Sprite(sprMat);
@@ -337,7 +417,7 @@ function generateFallbackGalaxy() {
     S.nodes.push({ id, mesh, x, y, z, val: 1, color });
     S.meta[id] = { star_class: 'Fallback', energy_level: 'Standardowa', brief: 'Gwiazda generowana proceduralnie.', file: id };
   }
-  ship.position.set(0, 0, 600);
+  ship.position.set(0, 0, 500);
   ship.lookAt(0, 0, 0);
   console.log('[WIZJER] Fallback gotowy. Statek w pozycji (0,0,600).');
 }
@@ -347,7 +427,7 @@ function buildGalaxy(galaxyData) {
   const edgeList = galaxyData.edges || [];
 
   Object.entries(nodeDict).forEach(([id, n]) => {
-    const size = CFG.starSize * Math.min(n.val||1, 5) * 0.45;
+    const size = CFG.starSize * Math.min(n.val||1, 5) * 1.2;
 
     const geo = new THREE.SphereGeometry(size, 12, 12);
     const color = new THREE.Color(n.color || '#00f3ff');
@@ -357,7 +437,7 @@ function buildGalaxy(galaxyData) {
     scene.add(mesh);
 
     const sprMat = new THREE.SpriteMaterial({
-      map: glowTexture, color, transparent: true, opacity: 0.4,
+      map: glowTexture, color, transparent: true, opacity: 0.7,
       blending: THREE.AdditiveBlending, depthWrite: false
     });
     const sprite = new THREE.Sprite(sprMat);
@@ -380,7 +460,7 @@ function buildGalaxy(galaxyData) {
   });
 
   // Position ship inside the galaxy cloud
-  ship.position.set(0, 0, 600);
+  ship.position.set(0, 0, 500);
   ship.lookAt(0, 0, 0);
 }
 
@@ -500,6 +580,7 @@ function updateFlight() {
     thrust.normalize().multiplyScalar(spd);
     thrust.applyQuaternion(ship.quaternion);
     ship.position.add(thrust);
+    if(Math.random() > 0.3) emitParticle();
   }
 
   updateCrosshair();
@@ -556,6 +637,18 @@ function updateSpeedHUD() {
 }
 
 // ─── HUD ───
+window.triggerScan = function() { document.getElementById('scan-modal').style.display = 'flex'; };
+window.closeScanModal = function() { document.getElementById('scan-modal').style.display = 'none'; };
+window.refreshData = function() {
+  closeScanModal();
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('loading').innerHTML = '🔄 Odświeżanie danych galaktyki...';
+  S.nodes.forEach(n => { scene.remove(n.mesh); });
+  S.nodeMeshes = [];
+  S.nodes = [];
+  loadGalaxy();
+};
+
 window.openHud = function(node) {
   S.selected = node;
   const meta = S.meta[node.id] || {};
@@ -605,6 +698,8 @@ window.closeTerminal = function() {
 function animate() {
   requestAnimationFrame(animate);
   updateFlight();
+  updateParticles();
+  updateSpeedLines();
 
   // Engine pulse
   const time = Date.now() * 0.005;
