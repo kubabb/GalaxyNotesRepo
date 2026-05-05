@@ -109,8 +109,9 @@
 <div id="topbar">
   <div class="font-mono text-xs text-[#00f3ff] tracking-widest uppercase">Wizjer Taktyczny // Moduł Nawigacji 3D</div>
   <div class="flex items-center gap-3">
+    <button id="center-cam-btn" class="font-mono text-[10px] text-[#00f3ff] border border-[#00f3ff]/40 px-3 py-1 hover:bg-[#00f3ff]/20 hover:shadow-[0_0_10px_rgba(0,243,255,0.3)] transition uppercase tracking-wider" onclick="resetCamera()">📍 WYŚRODKUJ</button>
     <button id="scan-btn" class="font-mono text-[10px] text-[#00f3ff] border border-[#00f3ff]/40 px-3 py-1 hover:bg-[#00f3ff]/20 hover:shadow-[0_0_10px_rgba(0,243,255,0.3)] transition uppercase tracking-wider" onclick="triggerScan()">⚡ RE-SKAN</button>
-    <div class="font-mono text-[10px] text-[#849495]">6DOF ACTIVE // RMB: LOT // LPM: SKANUJ</div>
+    <div class="font-mono text-[10px] text-[#849495]">6DOF ACTIVE // LPM: ORBITA // Scroll: ZOOM</div>
   </div>
 </div>
 
@@ -172,7 +173,7 @@
 <!-- Telemetry -->
 <div id="telemetry">
   W/S – Ciąg | A/D – Obrót (Yaw) | R/F – Wysokość | Q/E – Roll<br>
-  PPM – Obrót kamery (Orbit) | Scroll – Zoom | LPM – Leć do punktu/gwiazdy | Shift – Warp | TAB – Czułość | C/ESC – Anuluj
+  LPM (przytrzymaj) – Obrót kamery (Orbit) | Scroll – Zoom | Shift – Warp | TAB – Czułość | C/ESC – Anuluj
 </div>
 
 <!-- Loading -->
@@ -206,8 +207,7 @@ const CFG = {
 // ─── STATE ───
 const S = {
   keys: {},
-  mouseDownRight: false,
-  mxDelta: 0, myDelta: 0,
+  mouseDownLeft: false,
   currentSpeed: CFG.speed,
   targetStar: null,
   isWarp: false,
@@ -224,9 +224,9 @@ const S = {
   // Orbit camera params
   camAzimuth: Math.PI * 0.25,
   camElevation: Math.PI * 0.35,
-  camDistance: 180,
-  camMinDist: 60,
-  camMaxDist: 600,
+  camDistance: 280,
+  camMinDist: 80,
+  camMaxDist: 1200,
 };
 
 // ─── SCENE ───
@@ -357,9 +357,9 @@ const wildStarMat = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: 
 for(let i=0; i<wildStarCount; i++) {
   const mesh = new THREE.Mesh(wildStarGeo, wildStarMat.clone());
   mesh.position.set(
-    (Math.random()-0.5)*6000,
-    (Math.random()-0.5)*4000,
-    (Math.random()-0.5)*2000
+    (Math.random()-0.5)*12000,
+    (Math.random()-0.5)*8000,
+    (Math.random()-0.5)*4000
   );
   mesh.userData = {
     basePos: mesh.position.clone(),
@@ -383,11 +383,11 @@ function updateWildStars() {
     }
     // Wrap around if too far
     const dist = star.position.distanceTo(ship.position);
-    if(dist > 4000) {
+    if(dist > 6000) {
       star.position.copy(ship.position).add(new THREE.Vector3(
-        (Math.random()-0.5)*6000,
-        (Math.random()-0.5)*4000,
-        (Math.random()-0.5)*2000
+        (Math.random()-0.5)*12000,
+        (Math.random()-0.5)*8000,
+        (Math.random()-0.5)*4000
       ));
       star.userData.basePos.copy(star.position);
     }
@@ -454,13 +454,13 @@ async function loadGalaxy() {
 }
 
 function generateFallbackGalaxy() {
-  console.log('[WIZJER] Generowanie fallback galaktyki (200 gwiazd)...');
+  console.log('[WIZJER] Generowanie fallback galaktyki (400 gwiazd)...');
   const colors = ['#FF5733','#33FF57','#3357FF','#F333FF','#33FFF5','#FF33A8','#FFD433','#8D33FF'];
-  for(let i=0;i<200;i++) {
+  for(let i=0;i<400;i++) {
     const id = 'STAR_'+i;
-    const x = (Math.random()-0.5)*1200;
-    const y = (Math.random()-0.5)*1200;
-    const z = (Math.random()-0.5)*30;
+    const x = (Math.random()-0.5)*12000;
+    const y = (Math.random()-0.5)*8000;
+    const z = (Math.random()-0.5)*200;
     const size = CFG.starSize * Math.min((Math.random()*4)+1, 5) * 0.5;
     const color = new THREE.Color(colors[i % colors.length]);
     const geo = new THREE.SphereGeometry(size, 12, 12);
@@ -481,9 +481,9 @@ function generateFallbackGalaxy() {
     S.nodes.push({ id, mesh, x, y, z, val: 1, color });
     S.meta[id] = { star_class: 'Fallback', energy_level: 'Standardowa', brief: 'Gwiazda generowana proceduralnie.', file: id };
   }
-  ship.position.set(0, 80, 0);
+  ship.position.set(0, 4000, 0);
   ship.rotation.set(0, 0, 0);
-  console.log('[WIZJER] Fallback gotowy. Statek nad płaszczyzną (0,80,0), patrzy na -Z.');
+  console.log('[WIZJER] Fallback gotowy. Statek nad płaszczyzną (0,4000,0), patrzy na -Z.');
 }
 
 function buildGalaxy(galaxyData) {
@@ -524,7 +524,7 @@ function buildGalaxy(galaxyData) {
   });
 
   // Position ship above the galaxy plane, facing forward (-Z)
-  ship.position.set(0, 80, 0);
+  ship.position.set(0, 4000, 0);
   ship.rotation.set(0, 0, 0);
 }
 
@@ -549,7 +549,7 @@ window.addEventListener('keyup', e => {
 });
 
 window.addEventListener('mousemove', e => {
-  if(S.mouseDownRight) {
+  if(S.mouseDownLeft) {
     // Orbit camera: mouse moves azimuth/elevation
     S.camAzimuth -= e.movementX * CFG.mouseSensitivity * 0.5;
     S.camElevation += e.movementY * CFG.mouseSensitivity * 0.5;
@@ -557,17 +557,18 @@ window.addEventListener('mousemove', e => {
   }
 });
 window.addEventListener('mousedown', e => {
-  if(e.button===2) { S.mouseDownRight=true; canvas.style.cursor='none'; document.getElementById('flight-mode').textContent='TRYB: KAMERA (Orbit)'; }
   if(e.button===0) {
-    if(!e.target.closest('#hud-panel') && !e.target.closest('#terminal-modal') && !e.target.closest('#sidebar') && !e.target.closest('#topbar')) {
-      const ndcX = (e.clientX / window.innerWidth) * 2 - 1;
-      const ndcY = -(e.clientY / window.innerHeight) * 2 + 1;
-      handleLeftClick(ndcX, ndcY);
-    }
+    S.mouseDownLeft = true;
+    canvas.style.cursor = 'none';
+    document.getElementById('flight-mode').textContent = 'TRYB: KAMERA (Orbit)';
   }
 });
 window.addEventListener('mouseup', e => {
-  if(e.button===2) { S.mouseDownRight=false; canvas.style.cursor='crosshair'; document.getElementById('flight-mode').textContent='TRYB: MANUALNY'; }
+  if(e.button===0) {
+    S.mouseDownLeft = false;
+    canvas.style.cursor = 'crosshair';
+    document.getElementById('flight-mode').textContent = 'TRYB: MANUALNY';
+  }
 });
 window.addEventListener('contextmenu', e => e.preventDefault());
 window.addEventListener('wheel', e => {
@@ -806,6 +807,11 @@ function updateSpeedHUD() {
 }
 
 // ─── HUD ───
+window.resetCamera = function() {
+  S.camAzimuth = Math.PI * 0.25;
+  S.camElevation = Math.PI * 0.35;
+  S.camDistance = 280;
+};
 window.triggerScan = function() { document.getElementById('scan-modal').style.display = 'flex'; };
 window.closeScanModal = function() { document.getElementById('scan-modal').style.display = 'none'; };
 window.refreshData = function() {

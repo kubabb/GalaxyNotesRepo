@@ -221,27 +221,27 @@ def build_edges(nodes: dict):
 def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
     """
     Przypisuje współrzędne 3D (X, Y, Z) dla każdego węzła.
-    UKŁAD WOLUMETRYCZNY – ekstremalna dyspersja na osiach Y i Z.
+    UKŁAD WOLUMETRYCZNY – ekstremalna dyspersja na wszystkich osiach.
     Gwiazdy tworzą trójwymiarową chmurę; użytkownik jest WŚRÓD nich.
     """
     positions = {}
     degrees = {name: len(data["links_in"]) + len(data["links_out"]) for name, data in nodes.items()}
     n = len(nodes)
 
-    # Klastry rozrzucone WZDŁUŻ OSI X – galaktyka jako szeroki pas
+    # Klastry rozrzucone w całej objętości – galaktyka jako chmura
     cluster_count = max(12, min(20, int(n ** 0.45)))
     clusters = []
     for _ in range(cluster_count):
         clusters.append({
             "cx": random.uniform(-6000, 6000),
-            "cy": random.uniform(-400, 400),
-            "cz": random.uniform(-10, 10),
+            "cy": random.uniform(-3000, 3000),
+            "cz": random.uniform(-500, 500),
             "radius_x": random.uniform(800, 1800),
-            "radius_y": random.uniform(150, 350),
+            "radius_y": random.uniform(800, 1800),
         })
 
     # Supermasywna czarna dziura – mocne przyciąganie centrum
-    core = {"cx": 0, "cy": 0, "cz": 0, "radius_x": 600, "radius_y": 200}
+    core = {"cx": 0, "cy": 0, "cz": 0, "radius_x": 1200, "radius_y": 1200}
     clusters.append(core)
 
     for name in nodes:
@@ -250,35 +250,35 @@ def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
         arm_index = groups.get(name, 0) % arm_count if arm_count else 0
 
         if degree == 0:
-            # Osierocone notatki – bardzo szeroko na X, wąsko na Y
+            # Osierocone notatki – szeroko rozrzucone we wszystkich osiach
             x = random.uniform(-9000, 9000)
-            y = random.uniform(-600, 600)
-            z = random.uniform(-20, 20)
+            y = random.uniform(-4000, 4000)
+            z = random.uniform(-200, 200)
         else:
             # Wybierz klaster deterministycznie
             cluster_idx = hash(name) % len(clusters)
             cluster = clusters[cluster_idx]
 
-            # Promień X: ważniejsze bliżej środka klastra
+            # Promień: ważniejsze bliżej środka klastra
             max_rx = cluster["radius_x"]
             max_ry = cluster["radius_y"]
             rx = random.uniform(0, max_rx) * (1.0 - min(degree, 10) / 14.0)
             ry = random.uniform(0, max_ry) * (1.0 - min(degree, 10) / 14.0)
             rx += random.uniform(-200, 200)
-            ry += random.uniform(-80, 80)
+            ry += random.uniform(-200, 200)
             rx = max(50, rx)
-            ry = max(20, ry)
+            ry = max(50, ry)
 
             theta = random.uniform(0, 2 * math.pi)
 
             x = cluster["cx"] + rx * math.cos(theta)
             y = cluster["cy"] + ry * math.sin(theta)
-            z = cluster["cz"] + random.uniform(-8, 8)
+            z = cluster["cz"] + random.uniform(-80, 80)
 
-            # Szum – głównie na X
+            # Szum – na wszystkich osiach
             x += random.uniform(-400, 400)
-            y += random.uniform(-100, 100)
-            z += random.uniform(-5, 5)
+            y += random.uniform(-400, 400)
+            z += random.uniform(-50, 50)
 
             # Superważne notatki mocniej w centrum galaktyki
             if degree >= 8:
