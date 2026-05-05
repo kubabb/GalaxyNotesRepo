@@ -166,11 +166,14 @@
       </div>
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="lg:col-span-1">
-          <div id="drop-zone" class="drop-zone tech-border">
+          <div id="drop-zone" class="drop-zone tech-border" style="cursor:pointer;">
             <span class="material-symbols-outlined dz-icon">cloud_upload</span>
-            <span class="dz-text">Drop vault files here</span>
-            <span class="dz-text" style="color:#3a494b;">MD / TXT / JSON</span>
+            <span class="dz-text">Drop files or folders here</span>
+            <span class="dz-text" style="color:#3a494b;">MD / TXT / PDF / DOCX / HTML / PY / JS / JSON</span>
+            <span class="dz-text" style="color:#fe00fe; margin-top:4px;">[ CLICK TO BROWSE ]</span>
           </div>
+          <input type="file" id="file-input" multiple style="display:none;" accept=".md,.txt,.pdf,.docx,.html,.py,.js,.json">
+          <input type="file" id="folder-input" webkitdirectory directory style="display:none;">
           <div class="mt-3 flex items-center justify-between">
             <label class="font-mono text-[10px] text-[#849495] flex items-center gap-2 cursor-pointer select-none">
               <input type="checkbox" id="select-all" checked>
@@ -236,7 +239,11 @@
   const importBtn = document.getElementById('import-btn');
   const cliToast = document.getElementById('cli-toast');
   const closeCli = document.getElementById('close-cli');
+  const fileInput = document.getElementById('file-input');
+  const folderInput = document.getElementById('folder-input');
   let files = [];
+  const ALLOWED_RE = /\.(md|txt|pdf|docx|html|py|js|json)$/i;
+  const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
 
   function fmtSize(bytes) {
     if (bytes === 0) return '0 B';
@@ -248,17 +255,18 @@
 
   function render() {
     if (!files.length) {
-      fileListBody.innerHTML = '<div class="file-row text-[#849495] py-4"><span></span><span class="col-span-4">NO OBJECTS IN QUEUE // AWING DROP</span></div>';
+      fileListBody.innerHTML = '<div class="file-row text-[#849495] py-4"><span></span><span class="col-span-4">NO OBJECTS IN QUEUE // DROP OR CLICK TO BROWSE</span></div>';
       return;
     }
     fileListBody.innerHTML = files.map((f, i) => {
       const ext = (f.name.split('.').pop() || '').toUpperCase();
+      const status = f.size > MAX_SIZE ? '<span class="text-[#ff3333]">TOO LARGE</span>' : '<span class="text-[#36fd0f]">READY</span>';
       return `<div class="file-row">
         <span><input type="checkbox" data-idx="${i}" ${f.selected ? 'checked' : ''}></span>
         <span class="text-[#e2e2e2] truncate" title="${f.name.replace(/"/g, '&quot;')}">${f.name}</span>
         <span class="text-[#00f3ff]">${ext}</span>
         <span class="text-[#849495]">${fmtSize(f.size)}</span>
-        <span class="text-[#36fd0f]">READY</span>
+        ${status}
       </div>`;
     }).join('');
     fileListBody.querySelectorAll('input[type="checkbox"]').forEach(cb => {
@@ -276,19 +284,51 @@
   }
 
   function addFiles(fileList) {
-    const accepted = Array.from(fileList).filter(f => /\.(md|txt|json)$/i.test(f.name));
+    const accepted = Array.from(fileList).filter(f => ALLOWED_RE.test(f.name));
     const mapped = accepted.map(f => ({ file: f, name: f.name, size: f.size, selected: true }));
     files = files.concat(mapped);
     render();
     syncSelectAll();
   }
 
+  function traverseFileTree(item, callback) {
+    if (item.isFile) {
+      item.file(f => { if (ALLOWED_RE.test(f.name)) callback(f); });
+    } else if (item.isDirectory) {
+      const dirReader = item.createReader();
+      dirReader.readEntries(entries => {
+        entries.forEach(entry => traverseFileTree(entry, callback));
+      });
+    }
+  }
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', e => { addFiles(e.target.files); fileInput.value = ''; });
+
   dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
   dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
   dropZone.addEventListener('drop', e => {
     e.preventDefault();
     dropZone.classList.remove('dragover');
-    addFiles(e.dataTransfer.files);
+    const items = e.dataTransfer.items;
+    if (items && items.length) {
+      let dropped = [];
+      let pending = 0;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i].webkitGetAsEntry ? items[i].webkitGetAsEntry() : null;
+        if (item) {
+          pending++;
+          traverseFileTree(item, f => { dropped.push(f); });
+          setTimeout(() => { pending--; if (pending === 0) addFiles(dropped); }, 100);
+        } else if (items[i].getAsFile) {
+          const f = items[i].getAsFile();
+          if (f) dropped.push(f);
+        }
+      }
+      if (!pending) addFiles(dropped);
+    } else {
+      addFiles(e.dataTransfer.files);
+    }
   });
 
   selectAll.addEventListener('change', e => {
@@ -298,11 +338,35 @@
   });
 
   importBtn.addEventListener('click', () => {
-    const selected = files.filter(f => f.selected);
+    const selected = files.filter(f => f.selected && f.size <= MAX_SIZE);
     if (!selected.length) {
-      alert('NO FILES SELECTED // ABORT');
+      alert('NO VALID FILES SELECTED // ABORT');
       return;
     }
+    // Generate PowerShell script for download
+    const inboxPath = 'data/inbox';
+    let ps1 = `# GalaxyNotesProject – Auto-Import Script\r\n`;
+    ps1 += `# Generated: ${new Date().toISOString()}\r\n`;
+    ps1 += `$inbox = Join-Path $PSScriptRoot "${inboxPath}"\r\n`;
+    ps1 += `New-Item -ItemType Directory -Path $inbox -Force | Out-Null\r\n`;
+    selected.forEach((f, i) => {
+      ps1 += `# ${f.name} (${fmtSize(f.size)})\r\n`;
+    });
+    ps1 += `Write-Host "Copy the following files to: $inbox" -ForegroundColor Cyan\r\n`;
+    ps1 += `Write-Host "Then run: python main.py --brain $inbox" -ForegroundColor Magenta\r\n`;
+    ps1 += `pause\r\n`;
+
+    const blob = new Blob([ps1], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'import_notes.ps1';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    cliToast.querySelector('pre').textContent = `1. Downloaded import_notes.ps1\\n2. Place selected files in data/inbox/\\n3. Run: python main.py --brain data/inbox`;
     cliToast.classList.add('show');
   });
 
