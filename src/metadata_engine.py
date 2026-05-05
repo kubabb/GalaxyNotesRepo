@@ -16,6 +16,11 @@ try:
 except ImportError:
     requests = None
 
+try:
+    import ml_engine
+except ImportError:
+    ml_engine = None
+
 # Ładuj .env z config/
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
@@ -230,96 +235,19 @@ def analyze_local(md_file: Path, vault_path: Path) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════
-# AI ANALIZA (OPENROUTER z RETRY)
+# AI ANALIZA (LOCAL ML via ml_engine)
 # ═══════════════════════════════════════════════════════════════
 
-def call_openrouter(prompt: str, max_retries: int = MAX_RETRIES) -> str:
-    """Wywołuje OpenRouter API z retry logic i backoff."""
-    if not requests:
-        return ""
-    if not API_ENABLED:
-        return ""
-
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/galaxynotesproject",
-        "X-Title": "GalaxyNotesProject"
-    }
-    payload = {
-        "model": OPENROUTER_MODEL,
-        "messages": [
-            {"role": "system", "content": "Jesteś analitykiem semantycznym w stylu Sci-Fi. Odpowiadasz zwięźle i konkretnie w JSON."},
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.3,
-        "max_tokens": 300
-    }
-
-    for attempt in range(max_retries):
-        try:
-            resp = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=60)
-            data = resp.json()
-            if "choices" in data and len(data["choices"]) > 0:
-                return data["choices"][0]["message"]["content"]
-            elif "error" in data:
-                err = data["error"]
-                code = err.get("code", 0)
-                print(f"[STORYTELLER] API error (attempt {attempt+1}/{max_retries}): {err.get('message', 'unknown')}")
-                if code == 429 and attempt < max_retries - 1:
-                    delay = BACKOFF_DELAYS[min(attempt, len(BACKOFF_DELAYS) - 1)]
-                    print(f"[STORYTELLER] Rate limit. Backoff {delay}s...")
-                    time.sleep(delay)
-                elif code >= 500 and attempt < max_retries - 1:
-                    time.sleep(BACKOFF_DELAYS[min(attempt, len(BACKOFF_DELAYS) - 1)])
-                else:
-                    return ""
-            else:
-                return ""
-        except requests.exceptions.Timeout:
-            print(f"[STORYTELLER] Timeout (attempt {attempt+1}/{max_retries})")
-            if attempt < max_retries - 1:
-                time.sleep(BACKOFF_DELAYS[min(attempt, len(BACKOFF_DELAYS) - 1)])
-        except Exception as e:
-            print(f"[STORYTELLER] Exception (attempt {attempt+1}/{max_retries}): {e}")
-            if attempt < max_retries - 1:
-                time.sleep(2)
-    return ""
-
-
-def analyze_with_ai(md_file: Path, raw_text: str) -> dict:
-    """Używa LLM do wygenerowania metadanych Sci-Fi i sugerowanych linków."""
-    preview = raw_text[:2000]
-    prompt = f"""Przeanalizuj plik i zwróć WYŁĄCZNIE obiekt JSON (bez markdown, bez komentarzy).
-
-Nazwa: {md_file.name}
-Zawartość:
----
-{preview}
----
-
-Zwróć JSON z polami:
-- "star_class": jedna z ["Projekt aktywny", "Archiwum", "Standard", "Krytyczny", "Eksperymentalny"]
-- "energy_level": "Niska" | "Srednia" | "Wysoka" | "Krytyczna"
-- "brief": dokładnie 10 wyrazów opisujących plik w stylu "skanu pokładowego"
-- "suggested_links": lista max 5 nazw plików (bez ścieżek), które mogą być powiązane tematycznie
-
-Przykład:
-{{"star_class":"Projekt aktywny","energy_level":"Wysoka","brief":"Główny koordynator nocnego pipeline'u agentów AI.","suggested_links":["env_guard","galaxy_mapper"]}}"""
-
-    raw = call_openrouter(prompt)
-    if not raw:
+def analyze_with_ai(md_file: Path, raw_text: str, all_texts: list, all_filenames: list) -> dict:
+    """Używa lokalnego ML (TF-IDF + k-means) zamiast OpenRouter API."""
+    if not ml_engine:
         return {}
-
     try:
-        cleaned = re.sub(r"```json\s*", "", raw)
-        cleaned = re.sub(r"```\s*", "", cleaned)
-        data = json.loads(cleaned)
-        if all(k in data for k in ["star_class", "energy_level", "brief"]):
-            return data
-    except json.JSONDecodeError:
-        pass
-    return {}
+        results = ml_engine.analyze_texts([raw_text] + all_texts, [md_file.stem] + all_filenames)
+        return results[0]  # pierwszy wynik to nasz plik
+    except Exception as e:
+        print(f"[STORYTELLER] ML engine error: {e}")
+        return {}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -445,35 +373,61 @@ def process_vault(vault_path: Path = DEFAULT_BRAIN_PATH):
     pending = [f for f in all_files if f.stem not in processed]
     print(f"[STORYTELLER] Znaleziono {len(all_files)} plików. Do przetworzenia: {len(pending)}. Batch size: {MAX_CONCURRENT}")
 
-    api_failures = 0
-    api_failure_threshold = 5  # Po 5 błędach API wyłączamy
+    # Batch ML processing
+    if ml_engine and len(pending) > 0:
+        print(f"[STORYTELLER] Running local ML on {len(pending)} files...")
+        all_texts = []
+        all_files = []
+        for f in pending:
+            text, _, _ = extract_text_from_file(f)
+            all_texts.append(text[:5000])  # truncate dla szybkości
+            all_files.append(f.stem)
+        
+        try:
+            ml_results = ml_engine.analyze_texts(all_texts, all_files)
+            
+            for i, f in enumerate(pending):
+                key = f.stem
+                result = {
+                    "file": str(f.relative_to(vault_path)).replace("\\", "/"),
+                    "tooltip": ml_results[i].get("brief", f"Notatka {key}."),
+                    "star_class": ml_results[i].get("star_class", "Standardowy sektor"),
+                    "energy_level": ml_results[i].get("energy_level", "Srednia"),
+                    "brief": ml_results[i].get("brief", "Brak opisu"),
+                    "content": all_texts[i][:3000],
+                    "suggested_links": ml_results[i].get("suggested_links", []),
+                    "stats": {"char_count": len(all_texts[i]), "wikilink_count": 0},
+                    "source": "ml-local"
+                }
+                metadata[key] = result
+                processed.add(key)
+            
+            # Usuń przetworzone z pending
+            pending = [f for f in pending if f.stem not in processed]
+            print(f"[STORYTELLER] ML batch done. Remaining for local: {len(pending)}")
+        except Exception as e:
+            print(f"[STORYTELLER] ML batch failed: {e}. Falling back to local processing.")
+    
+    # Local fallback for remaining files
+    if pending:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT) as executor:
+            future_to_file = {
+                executor.submit(process_single_file, file_path, vault_path, processed): file_path
+                for file_path in pending
+            }
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT) as executor:
-        future_to_file = {
-            executor.submit(process_single_file, file_path, vault_path, processed): file_path
-            for file_path in pending
-        }
-
-        for future in concurrent.futures.as_completed(future_to_file):
-            file_path = future_to_file[future]
-            try:
-                key, result, success = future.result()
-                if success and result:
-                    metadata[key] = result
-                    processed.add(key)
-                    if result.get("source") in ("ai", "ai-upload"):
-                        api_failures = max(0, api_failures - 1)
-                    if len(processed) % 5 == 0:
-                        save_checkpoint(processed, len(all_files))
-                        print(f"[STORYTELLER] [{len(processed)}/{len(all_files)}] Checkpoint saved.")
-                else:
-                    if not success:
-                        api_failures += 1
-                        if api_failures >= api_failure_threshold:
-                            print(f"[STORYTELLER] API failures: {api_failures}. Switching to LOCAL MODE for remaining files.")
-                            API_ENABLED = False
-            except Exception as e:
-                print(f"[STORYTELLER] Błąd przetwarzania {file_path.name}: {e}")
+            for future in concurrent.futures.as_completed(future_to_file):
+                file_path = future_to_file[future]
+                try:
+                    key, result, success = future.result()
+                    if success and result:
+                        metadata[key] = result
+                        processed.add(key)
+                        if len(processed) % 5 == 0:
+                            save_checkpoint(processed, len(all_files))
+                            print(f"[STORYTELLER] [{len(processed)}/{len(all_files)}] Checkpoint saved.")
+                except Exception as e:
+                    print(f"[STORYTELLER] Błąd przetwarzania {file_path.name}: {e}")
 
     # Zapisz finalne wyniki
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -482,10 +436,11 @@ def process_vault(vault_path: Path = DEFAULT_BRAIN_PATH):
 
     save_checkpoint(processed, len(all_files))
     ai_count = sum(1 for v in metadata.values() if v.get("source") in ("ai", "ai-upload"))
+    ml_count = sum(1 for v in metadata.values() if v.get("source") == "ml-local")
     upload_count = sum(1 for v in metadata.values() if v.get("source") in ("local-upload", "ai-upload"))
-    local_count = len(metadata) - ai_count - upload_count
+    local_count = len(metadata) - ai_count - ml_count - upload_count
 
-    print(f"[STORYTELLER] ZAKONCZONO: {len(metadata)} wpisów (AI: {ai_count}, Local: {local_count}, Upload: {upload_count})")
+    print(f"[STORYTELLER] ZAKONCZONO: {len(metadata)} wpisów (AI: {ai_count}, ML: {ml_count}, Local: {local_count}, Upload: {upload_count})")
     print(f"[STORYTELLER] Plik: {OUTPUT_FILE}")
     return OUTPUT_FILE
 

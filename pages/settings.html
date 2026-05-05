@@ -80,24 +80,6 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div class="border border-[#3a494b] bg-[#131313]/90 p-5 tech-border">
-        <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">Ścieżka do Vaultu</div>
-        <label class="block font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">BRAIN_PATH</label>
-        <input type="text" id="vault-path" class="terminal-input" placeholder="C:\Users\...\BRAIN">
-        <div class="mt-3 font-mono text-[10px] text-[#849495]">Ścieżka do folderu z notatkami Markdown.</div>
-      </div>
-
-      <div class="border border-[#3a494b] bg-[#131313]/90 p-5 tech-border">
-        <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">API & AI</div>
-        <label class="block font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">OPENROUTER_MODEL</label>
-        <input type="text" id="model" class="terminal-input mb-4" value="google/gemma-4-26b-a4b-it:free">
-        <div class="flex items-center justify-between">
-          <span class="font-mono text-xs text-[#b9cacb]">API_ENABLED</span>
-          <input type="checkbox" id="api-enabled" class="toggle-switch">
-        </div>
-        <div class="mt-3 font-mono text-[10px] text-[#849495]">Uwaga: free tier ma limit ~50 req/dzień.</div>
-      </div>
-
-      <div class="border border-[#3a494b] bg-[#131313]/90 p-5 tech-border">
         <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">Wizualizacja 3D</div>
         <label class="block font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">FOG_DENSITY</label>
         <input type="range" id="fog" min="0" max="100" value="25" class="w-full mb-4 accent-[#00f3ff]">
@@ -118,16 +100,6 @@
         </div>
       </div>
 
-      <div class="border border-[#3a494b] bg-[#131313]/90 p-5 tech-border">
-        <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">Git & Deploy</div>
-        <label class="block font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">GITHUB_REPO</label>
-        <input type="text" id="github-repo" class="terminal-input mb-3" placeholder="user/repo">
-        <label class="block font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">AUTO_PUSH</label>
-        <div class="flex items-center justify-between">
-          <span class="font-mono text-xs text-[#b9cacb]">Włącz auto-push po pipeline</span>
-          <input type="checkbox" id="auto-push" class="toggle-switch">
-        </div>
-      </div>
     </div>
 
     <div class="mt-8 flex gap-4">
@@ -140,19 +112,96 @@
     </div>
 
     <div id="save-msg" class="mt-4 font-mono text-xs text-[#36fd0f] hidden">✓ Konfiguracja zapisana w localStorage.</div>
+
+    <div class="panel p-5 tech-border mt-6">
+      <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">/// SUBSCRIPTION</div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- FREE -->
+        <div class="border border-[#36fd0f]/40 bg-[#36fd0f]/5 p-4">
+          <div class="font-headline text-lg text-[#36fd0f] mb-2">FREE</div>
+          <div class="font-headline text-2xl text-[#e2e2e2] mb-3">$0<span class="text-sm">/mo</span></div>
+          <ul class="font-mono text-[10px] text-[#b9cacb] space-y-1 mb-4">
+            <li>100 notes</li><li>1 project</li><li>Basic formats (md, txt)</li><li>Local ML</li>
+          </ul>
+          <button class="w-full py-2 border border-[#36fd0f]/60 text-[#36fd0f] font-mono text-[10px] uppercase opacity-50 cursor-not-allowed">CURRENT</button>
+        </div>
+        <!-- STANDARD -->
+        <div class="border border-[#00f3ff]/40 bg-[#00f3ff]/5 p-4">
+          <div class="font-headline text-lg text-[#00f3ff] mb-2">STANDARD</div>
+          <div class="font-headline text-2xl text-[#e2e2e2] mb-3">$9.99<span class="text-sm">/mo</span></div>
+          <ul class="font-mono text-[10px] text-[#b9cacb] space-y-1 mb-4">
+            <li>1,000 notes</li><li>5 projects</li><li>All formats</li><li>Priority support</li>
+          </ul>
+          <button class="w-full py-2 border border-[#00f3ff] text-[#00f3ff] font-mono text-[10px] uppercase hover:bg-[#00f3ff]/10 transition-all">UPGRADE</button>
+        </div>
+        <!-- PREMIUM -->
+        <div class="border border-[#fe00fe]/40 bg-[#fe00fe]/5 p-4">
+          <div class="font-headline text-lg text-[#fe00fe] mb-2">PREMIUM</div>
+          <div class="font-headline text-2xl text-[#e2e2e2] mb-3">$19.99<span class="text-sm">/mo</span></div>
+          <ul class="font-mono text-[10px] text-[#b9cacb] space-y-1 mb-4">
+            <li>Unlimited notes</li><li>Unlimited projects</li><li>Custom themes</li><li>Early access</li>
+          </ul>
+          <button class="w-full py-2 border border-[#fe00fe] text-[#fe00fe] font-mono text-[10px] uppercase hover:bg-[#fe00fe]/10 transition-all">UPGRADE</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel p-5 tech-border mt-6">
+      <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">/// APPEARANCE</div>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-xs text-[#b9cacb]">Scanlines</span>
+          <input type="checkbox" id="toggle-scanlines" checked class="accent-[#00f3ff]">
+        </div>
+        <div>
+          <span class="font-mono text-xs text-[#b9cacb]">Bloom Intensity</span>
+          <input type="range" id="bloom-slider" min="0" max="100" value="50" class="w-full accent-[#00f3ff]">
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-xs text-[#b9cacb]">Theme</span>
+          <select id="theme-select" class="bg-[#1f1f1f] border border-[#3a494b] text-[#e2e2e2] font-mono text-xs px-2 py-1">
+            <option value="cyberpunk">Cyberpunk</option>
+            <option value="minimal">Minimal</option>
+            <option value="high-contrast">High Contrast</option>
+          </select>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-xs text-[#b9cacb]">Font Size</span>
+          <select id="font-size-select" class="bg-[#1f1f1f] border border-[#3a494b] text-[#e2e2e2] font-mono text-xs px-2 py-1">
+            <option value="small">Small</option>
+            <option value="normal" selected>Normal</option>
+            <option value="large">Large</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel p-5 tech-border mt-6">
+      <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">/// DATA</div>
+      <div class="grid grid-cols-2 gap-3">
+        <button class="py-2 border border-[#00f3ff]/40 text-[#00f3ff] font-mono text-[10px] uppercase hover:bg-[#00f3ff]/10">EXPORT PROJECT</button>
+        <button class="py-2 border border-[#00f3ff]/40 text-[#00f3ff] font-mono text-[10px] uppercase hover:bg-[#00f3ff]/10">IMPORT PROJECT</button>
+        <button class="py-2 border border-[#ff3333]/40 text-[#ff3333] font-mono text-[10px] uppercase hover:bg-[#ff3333]/10">CLEAR CACHE</button>
+        <button class="py-2 border border-[#849495]/40 text-[#849495] font-mono text-[10px] uppercase hover:bg-white/5">RESET SETTINGS</button>
+      </div>
+    </div>
+
+    <div class="panel p-5 tech-border mt-6">
+      <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">/// ABOUT</div>
+      <div class="font-mono text-xs text-[#b9cacb] space-y-1">
+        <div>Version: <span class="text-[#e2e2e2]">v5.0</span></div>
+        <div>Author: <span class="text-[#e2e2e2]">Galaxy-Pilot Team</span></div>
+        <div>GitHub: <a href="#" class="text-[#00f3ff] hover:underline">github.com/kubabb/GalaxyNotesRepo</a></div>
+      </div>
+    </div>
   </div>
 </main>
 
 <script>
 function loadSettings() {
   const s = JSON.parse(localStorage.getItem('gp_settings') || '{}');
-  if(s.vaultPath) document.getElementById('vault-path').value = s.vaultPath;
-  if(s.model) document.getElementById('model').value = s.model;
-  if(s.apiEnabled) document.getElementById('api-enabled').checked = s.apiEnabled;
   if(s.fogDensity) document.getElementById('fog').value = s.fogDensity;
   if(s.showEdges !== undefined) document.getElementById('show-edges').checked = s.showEdges;
-  if(s.githubRepo) document.getElementById('github-repo').value = s.githubRepo;
-  if(s.autoPush) document.getElementById('auto-push').checked = s.autoPush;
 
   const sens = localStorage.getItem('galaxy_sens');
   const sensInput = document.getElementById('mouse-sens');
@@ -169,13 +218,8 @@ document.getElementById('mouse-sens').addEventListener('input', function() {
 });
 function saveSettings() {
   const s = {
-    vaultPath: document.getElementById('vault-path').value,
-    model: document.getElementById('model').value,
-    apiEnabled: document.getElementById('api-enabled').checked,
     fogDensity: document.getElementById('fog').value,
     showEdges: document.getElementById('show-edges').checked,
-    githubRepo: document.getElementById('github-repo').value,
-    autoPush: document.getElementById('auto-push').checked,
   };
   localStorage.setItem('gp_settings', JSON.stringify(s));
   localStorage.setItem('galaxy_sens', document.getElementById('mouse-sens').value);
@@ -186,13 +230,8 @@ function saveSettings() {
 function resetSettings() {
   localStorage.removeItem('gp_settings');
   localStorage.removeItem('galaxy_sens');
-  document.getElementById('vault-path').value = '';
-  document.getElementById('model').value = 'google/gemma-4-26b-a4b-it:free';
-  document.getElementById('api-enabled').checked = false;
   document.getElementById('fog').value = 25;
   document.getElementById('show-edges').checked = true;
-  document.getElementById('github-repo').value = '';
-  document.getElementById('auto-push').checked = false;
   document.getElementById('mouse-sens').value = 0.0018;
   document.getElementById('mouse-sens-val').textContent = '0.0018';
 }

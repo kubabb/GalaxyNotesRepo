@@ -1006,27 +1006,36 @@ window.closeHud = function() {
   S.selected = null;
 };
 window.openTerminal = function() {
-  const meta = S.selected ? S.meta[S.selected.id] : null;
-  if(!meta) return;
+  if (!S.selected) {
+    console.warn('[TACTICAL] No star selected for terminal');
+    return;
+  }
+  const meta = S.meta[S.selected.id];
+  if (!meta) {
+    console.warn('[TACTICAL] No metadata for star:', S.selected.id);
+    return;
+  }
   document.getElementById('terminal-title').textContent = `TERMINAL // ${S.selected.id.toUpperCase()}`;
   const body = document.getElementById('terminal-body');
   body.innerHTML = '';
+
   const header = document.createElement('div');
   header.className = 'mb-4 pb-4 border-b border-[#00dce6]/30';
   header.innerHTML = `
     <div class="font-mono text-[11px] text-[#00f3ff] tracking-widest mb-2">=== DANE TAKTYCZNE SEKTORA ===</div>
-    <div class="font-mono text-xs text-[#b9cacb]">KLASA: ${meta.star_class||'-'}</div>
-    <div class="font-mono text-xs text-[#b9cacb]">ENERGIA: ${meta.energy_level||'-'}</div>
-    <div class="font-mono text-xs text-[#b9cacb]">PLIK: ${meta.file||'-'}</div>
+    <div class="font-mono text-xs text-[#b9cacb]">KLASA: ${meta.star_class || '-'}</div>
+    <div class="font-mono text-xs text-[#b9cacb]">ENERGIA: ${meta.energy_level || '-'}</div>
+    <div class="font-mono text-xs text-[#b9cacb]">PLIK: ${meta.file || '-'}</div>
+    ${meta.suggested_links && meta.suggested_links.length ? `<div class="font-mono text-xs text-[#b9cacb]">POWIĄZANIA: ${meta.suggested_links.join(', ')}</div>` : ''}
   `;
   body.appendChild(header);
+
   const content = meta.content || meta.tooltip || 'Brak danych tekstowych.';
-  content.split('\n').forEach(line => {
-    const div = document.createElement('div');
-    div.className = 'terminal-line';
-    div.textContent = line || ' ';
-    body.appendChild(div);
-  });
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'font-mono text-xs text-[#b9cacb] leading-relaxed whitespace-pre-wrap';
+  contentDiv.textContent = content;
+  body.appendChild(contentDiv);
+
   document.getElementById('terminal-modal').classList.add('active');
 };
 window.closeTerminal = function() {

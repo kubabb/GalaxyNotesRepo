@@ -12,7 +12,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = PROJECT_ROOT / "config" / ".env"
 GITIGNORE_PATH = PROJECT_ROOT / ".gitignore"
 
-REQUIRED_KEYS = ["OPENROUTER_API_KEY"]
+# OPENROUTER_API_KEY no longer required – project runs in local ML mode
+# REQUIRED_KEYS = ["OPENROUTER_API_KEY"]
 REQUIRED_GITIGNORE_PATTERNS = [
     ".env",
     "config/.env",
@@ -34,17 +35,17 @@ def load_env():
 
 
 def check_api_keys():
-    """Sprawdza obecność wymaganych kluczy API."""
-    missing = []
-    for key in REQUIRED_KEYS:
-        value = os.getenv(key)
-        if not value or value.strip() == "" or "tutaj_wstaw" in value.lower():
-            missing.append(key)
-    if missing:
-        print(f"[SECURITY-OFFICER] BŁĄD: Brakujące klucze API: {', '.join(missing)}")
-        print("[SECURITY-OFFICER] Uzupełnij je w pliku .env i uruchom ponownie.")
-        sys.exit(1)
-    print("[SECURITY-OFFICER] Wszystkie klucze API są obecne i poprawne.")
+    """(Legacy) API keys no longer required – local ML mode."""
+    pass
+
+
+def check_ml_deps():
+    """Sprawdza czy scikit-learn jest zainstalowane."""
+    try:
+        import sklearn
+        print("[SECURITY-OFFICER] scikit-learn detected – ML features available.")
+    except ImportError:
+        print("[SECURITY-OFFICER] WARNING: scikit-learn not installed. ML features disabled.")
 
 
 def check_gitignore():
@@ -102,7 +103,7 @@ def validate_before_push():
     """
     print("[SECURITY-OFFICER] Sprawdzam bezpieczeństwo przed push...")
     load_env()
-    check_api_keys()
+    check_ml_deps()
     if not check_gitignore():
         print("[SECURITY-OFFICER] BŁĄD: .gitignore nie jest w pełni skonfigurowany. Push BLOKOWANY.")
         sys.exit(1)
@@ -112,7 +113,7 @@ def validate_before_push():
 def boot_check():
     """Sprawdzenie przy każdym uruchomieniu projektu."""
     load_env()
-    check_api_keys()
+    check_ml_deps()
     check_gitignore()
 
 
