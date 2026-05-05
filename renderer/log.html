@@ -106,6 +106,7 @@
   </div>
 </main>
 
+<script src="gp-helper.js"></script>
 <script>
 let allData = {};
 
@@ -121,8 +122,7 @@ function getFormatIcon(filename) {
 
 (async () => {
   try {
-    const res = await fetch('../data/output/metadata.json');
-    allData = await res.json();
+    allData = await GP.loadJSON('data/output/metadata.json') || {};
     renderList(Object.keys(allData));
   } catch(e) {
     document.getElementById('log-list').innerHTML += '<div class="p-3 text-[#ffabf3] font-mono text-xs">Błąd ładowania danych.</div>';

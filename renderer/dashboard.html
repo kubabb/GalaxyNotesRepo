@@ -284,11 +284,12 @@
   </div>
 </div>
 
+<script src="gp-helper.js"></script>
 <script>
 (async () => {
   try {
-    const res = await fetch('../data/output/galaxy_data.json');
-    const data = await res.json();
+    const data = await GP.loadJSON('data/output/galaxy_data.json');
+    if (!data) throw new Error('No data');
     const meta = data.meta || {};
     document.getElementById('stat-nodes').textContent = meta.node_count || Object.keys(data.nodes||{}).length;
     document.getElementById('stat-edges').textContent = meta.edge_count || (data.edges||[]).length;

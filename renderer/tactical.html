@@ -226,6 +226,7 @@
 }
 </script>
 
+<script src="gp-helper.js"></script>
 <script type="module">
 import * as THREE from 'three';
 
@@ -507,12 +508,11 @@ function updateSpeedLines() {
 async function loadGalaxy() {
   try {
     console.log('[WIZJER] Ładowanie danych galaktyki...');
-    const [gRes, mRes] = await Promise.all([
-      fetch('../data/output/galaxy_data.json'),
-      fetch('../data/output/metadata.json')
+    const [galaxyData, metaData] = await Promise.all([
+      GP.loadJSON('data/output/galaxy_data.json'),
+      GP.loadJSON('data/output/metadata.json')
     ]);
-    const galaxyData = await gRes.json();
-    S.meta = await mRes.json();
+    S.meta = metaData || {};
     console.log(`[WIZJER] Załadowano ${Object.keys(galaxyData.nodes||{}).length} węzłów.`);
     buildGalaxy(galaxyData);
     document.getElementById('loading').style.display = 'none';

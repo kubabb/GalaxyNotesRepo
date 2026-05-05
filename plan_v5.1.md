@@ -7,14 +7,16 @@
 
 ## Postęp
 
-- [x] Krok 1: Inicjalizacja npm w `electron/` 
-- [ ] Krok 2: Instalacja Electron  
-- [ ] Krok 3: `electron/main.js` — główny proces  
-- [ ] Krok 4: `electron/preload.js` — IPC bridge  
-- [ ] Krok 5: Przeniesienie frontendu do `renderer/`  
-- [ ] Krok 6: Python subprocess auto-start  
-- [ ] Krok 7: IPC — upload plików  
-- [ ] Krok 8: Build i package  
+- [x] Krok 1: Inicjalizacja npm w `electron/`
+- [x] Krok 2: Instalacja Electron
+- [x] Krok 3: `electron/main.js` — główny proces
+- [x] Krok 4: `electron/preload.js` — IPC bridge
+- [x] Krok 5: Przeniesienie frontendu do `renderer/`
+- [x] Krok 6: `renderer/gp-helper.js` — auto-detekcja Electron vs Web
+- [x] Krok 7: Zamiana fetch na GP.loadJSON w dashboard/tactical/log
+- [ ] Krok 8: Upload plików przez IPC (dashboard)
+- [ ] Krok 9: Test Electron start
+- [ ] Krok 10: Build i package  
 
 ---
 
