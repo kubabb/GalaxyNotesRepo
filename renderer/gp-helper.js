@@ -71,4 +71,13 @@ GP.getVersion = async () => {
   return '5.1.0-web';
 };
 
+// Listen for main-process navigation (View menu / tray)
+if (GP.isElectron() && window.electronAPI.onNavigate) {
+  window.electronAPI.onNavigate((target) => {
+    const targetUrl = `./${target}.html`;
+    if (window.location.href.endsWith(targetUrl)) return;
+    window.location.href = targetUrl;
+  });
+}
+
 console.log('[GP] Renderer helper loaded. Electron:', GP.isElectron());

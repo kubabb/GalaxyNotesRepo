@@ -8,6 +8,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onPythonLog: (callback) => ipcRenderer.on('python-log', (event, data) => callback(data)),
   onPythonError: (callback) => ipcRenderer.on('python-error', (event, data) => callback(data)),
 
+  // Main-process navigation (View menu)
+  onNavigate: (callback) => ipcRenderer.on('navigate', (event, target) => callback(target)),
+
   // File operations
   uploadFiles: (files, projectName) => ipcRenderer.invoke('upload-files', files, projectName),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
