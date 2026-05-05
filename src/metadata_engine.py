@@ -41,6 +41,10 @@ BACKOFF_DELAYS = [2, 4, 8]  # seconds
 MAX_CONCURRENT = 3
 API_ENABLED = False  # WATCHMAN: API rate limited – LOCAL MODE enforced
 
+# Multi-format scan config
+ALLOWED_EXTS = {".md", ".txt", ".pdf", ".docx", ".html", ".py", ".js", ".json"}
+SKIP_DIRS = {".git", "__pycache__", "node_modules", "data", ".galaxy_map"}
+
 
 def clean_markdown(text: str) -> str:
     """Usuwa frontmatter, nagłówki markdown i linki."""
@@ -129,6 +133,62 @@ def brief_from_text_local(text: str, name: str) -> str:
 
 def count_wikilinks(text: str) -> int:
     return len(re.findall(r"\[\[[^\]]+\]\]", text))
+
+
+def extract_text_from_file(file_path: Path) -> tuple:
+    """Ekstrahuje tekst z różnych formatów. Zwraca (text, is_imported_md, original_path)."""
+    suffix = file_path.suffix.lower()
+
+    if suffix == ".md":
+        if file_path.name.endswith(".imported.md"):
+            try:
+                raw = file_path.read_text(encoding="utf-8")
+                original = str(file_path).replace("\\", "/")
+                fm_match = FRONTMATTER_RE.search(raw)
+                if fm_match:
+                    fm = raw[:fm_match.end()]
+                    content = raw[fm_match.end():]
+                    m = re.search(r'original_file:\s*["\']?([^"\n]+)', fm)
+                    if m:
+                        original = m.group(1).strip().strip('"').strip("'")
+                else:
+                    content = raw
+                return content, True, original
+            except Exception:
+                return "", True, str(file_path).replace("\\", "/")
+        else:
+            try:
+                return file_path.read_text(encoding="utf-8"), False, None
+            except Exception:
+                return "", False, None
+
+    if suffix in {".txt", ".py", ".js", ".json", ".html"}:
+        try:
+            return file_path.read_text(encoding="utf-8"), False, None
+        except Exception:
+            return "", False, None
+
+    if suffix == ".pdf":
+        try:
+            from PyPDF2 import PdfReader
+            reader = PdfReader(str(file_path))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+            return text, False, None
+        except Exception as e:
+            print(f"[STORYTELLER] PDF extract failed {file_path}: {e}")
+            return "", False, None
+
+    if suffix == ".docx":
+        try:
+            from docx import Document
+            doc = Document(str(file_path))
+            text = "\n".join(p.text for p in doc.paragraphs)
+            return text, False, None
+        except Exception as e:
+            print(f"[STORYTELLER] DOCX extract failed {file_path}: {e}")
+            return "", False, None
+
+    return "", False, None
 
 
 def analyze_local(md_file: Path, vault_path: Path) -> dict:
@@ -285,27 +345,43 @@ def save_checkpoint(processed: set, total: int):
         json.dump({"processed": list(processed), "total": total}, f, ensure_ascii=False, indent=2)
 
 
-def process_single_file(md_file: Path, vault_path: Path, processed: set) -> tuple:
-    """Przetwarza jeden plik (AI + fallback). Zwraca (key, result, success)."""
-    key = md_file.stem
+def process_single_file(file_path: Path, vault_path: Path, processed: set) -> tuple:
+    """Przetwarza jeden plik dowolnego formatu (AI + fallback). Zwraca (key, result, success)."""
+    key = file_path.stem
     if key in processed:
         return key, None, True
 
-    try:
-        raw = md_file.read_text(encoding="utf-8")
-    except Exception as e:
-        print(f"[STORYTELLER] Pominięto {md_file}: {e}")
+    text, is_imported, original_path = extract_text_from_file(file_path)
+    if text is None:
+        text = ""
+    if not text and not is_imported:
         return key, None, False
+
+    # Dla imported.md użyj oryginalnego stem jako klucz
+    if is_imported and original_path:
+        key = Path(original_path).stem
+
+    is_native_md = file_path.suffix.lower() == ".md" and not is_imported
+
+    if is_native_md:
+        raw = text
+        clean_text = clean_markdown(raw)
+        link_count = count_wikilinks(raw)
+    else:
+        raw = text
+        clean_text = raw[:5000]
+        link_count = 0
+
+    text_len = len(clean_text)
 
     # Próbuj AI najpierw
     ai_result = None
     if API_ENABLED:
-        ai_result = analyze_with_ai(md_file, raw)
+        ai_result = analyze_with_ai(file_path, raw)
 
-    clean_text = clean_markdown(raw)
     if ai_result:
         result = {
-            "file": str(md_file.relative_to(vault_path)).replace("\\", "/"),
+            "file": str(file_path.relative_to(vault_path)).replace("\\", "/"),
             "tooltip": extract_first_sentence(clean_text) or f"Notatka {key}.",
             "star_class": ai_result.get("star_class", "Standardowy sektor"),
             "energy_level": ai_result.get("energy_level", "Srednia"),
@@ -313,14 +389,26 @@ def process_single_file(md_file: Path, vault_path: Path, processed: set) -> tupl
             "content": clean_text[:3000],
             "suggested_links": ai_result.get("suggested_links", []),
             "stats": {
-                "char_count": len(clean_text),
-                "wikilink_count": count_wikilinks(raw)
+                "char_count": text_len,
+                "wikilink_count": link_count
             },
-            "source": "ai"
+            "source": "ai" if is_native_md else "ai-upload"
         }
     else:
-        # Fallback lokalny
-        result = analyze_local(md_file, vault_path)
+        if is_native_md:
+            result = analyze_local(file_path, vault_path)
+        else:
+            result = {
+                "file": str(file_path.relative_to(vault_path)).replace("\\", "/"),
+                "tooltip": extract_first_sentence(clean_text) or f"Notatka {key}.",
+                "star_class": star_class_from_name(key, text_len),
+                "energy_level": energy_level_from_size(text_len, link_count),
+                "brief": brief_from_text_local(raw, key),
+                "content": clean_text[:3000],
+                "suggested_links": [],
+                "stats": {"char_count": text_len, "wikilink_count": link_count},
+                "source": "local-upload"
+            }
 
     return key, result, result is not None
 
@@ -334,8 +422,13 @@ def process_vault(vault_path: Path = DEFAULT_BRAIN_PATH):
     print(f"[STORYTELLER] [EVOLUTION v2.0] Skanuję {vault_path}...")
     print(f"[STORYTELLER] API: {'WLACZONE' if API_ENABLED else 'WYLACZONE (LOCAL MODE)'}")
 
-    md_files = list(vault_path.rglob("*.md"))
-    md_files = [f for f in md_files if ".git" not in str(f)]
+    # Multi-format scan
+    all_files = []
+    for f in vault_path.rglob("*"):
+        if any(part in SKIP_DIRS for part in f.parts):
+            continue
+        if f.is_file() and f.suffix.lower() in ALLOWED_EXTS:
+            all_files.append(f)
 
     processed = load_checkpoint()
     metadata = {}
@@ -349,30 +442,30 @@ def process_vault(vault_path: Path = DEFAULT_BRAIN_PATH):
         except Exception:
             pass
 
-    pending = [f for f in md_files if f.stem not in processed]
-    print(f"[STORYTELLER] Znaleziono {len(md_files)} notatek. Do przetworzenia: {len(pending)}. Batch size: {MAX_CONCURRENT}")
+    pending = [f for f in all_files if f.stem not in processed]
+    print(f"[STORYTELLER] Znaleziono {len(all_files)} plików. Do przetworzenia: {len(pending)}. Batch size: {MAX_CONCURRENT}")
 
     api_failures = 0
     api_failure_threshold = 5  # Po 5 błędach API wyłączamy
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT) as executor:
         future_to_file = {
-            executor.submit(process_single_file, md_file, vault_path, processed): md_file
-            for md_file in pending
+            executor.submit(process_single_file, file_path, vault_path, processed): file_path
+            for file_path in pending
         }
 
         for future in concurrent.futures.as_completed(future_to_file):
-            md_file = future_to_file[future]
+            file_path = future_to_file[future]
             try:
                 key, result, success = future.result()
                 if success and result:
                     metadata[key] = result
                     processed.add(key)
-                    if result.get("source") == "ai":
+                    if result.get("source") in ("ai", "ai-upload"):
                         api_failures = max(0, api_failures - 1)
                     if len(processed) % 5 == 0:
-                        save_checkpoint(processed, len(md_files))
-                        print(f"[STORYTELLER] [{len(processed)}/{len(md_files)}] Checkpoint saved.")
+                        save_checkpoint(processed, len(all_files))
+                        print(f"[STORYTELLER] [{len(processed)}/{len(all_files)}] Checkpoint saved.")
                 else:
                     if not success:
                         api_failures += 1
@@ -380,18 +473,19 @@ def process_vault(vault_path: Path = DEFAULT_BRAIN_PATH):
                             print(f"[STORYTELLER] API failures: {api_failures}. Switching to LOCAL MODE for remaining files.")
                             API_ENABLED = False
             except Exception as e:
-                print(f"[STORYTELLER] Błąd przetwarzania {md_file.name}: {e}")
+                print(f"[STORYTELLER] Błąd przetwarzania {file_path.name}: {e}")
 
     # Zapisz finalne wyniki
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(metadata, f, ensure_ascii=False, indent=2)
 
-    save_checkpoint(processed, len(md_files))
-    ai_count = sum(1 for v in metadata.values() if v.get("source") == "ai")
-    local_count = len(metadata) - ai_count
+    save_checkpoint(processed, len(all_files))
+    ai_count = sum(1 for v in metadata.values() if v.get("source") in ("ai", "ai-upload"))
+    upload_count = sum(1 for v in metadata.values() if v.get("source") in ("local-upload", "ai-upload"))
+    local_count = len(metadata) - ai_count - upload_count
 
-    print(f"[STORYTELLER] ZAKONCZONO: {len(metadata)} wpisów (AI: {ai_count}, Local: {local_count})")
+    print(f"[STORYTELLER] ZAKONCZONO: {len(metadata)} wpisów (AI: {ai_count}, Local: {local_count}, Upload: {upload_count})")
     print(f"[STORYTELLER] Plik: {OUTPUT_FILE}")
     return OUTPUT_FILE
 
