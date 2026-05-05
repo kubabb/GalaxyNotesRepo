@@ -39,6 +39,17 @@
 
   .panel { background: rgba(19,19,19,0.9); border: 1px solid var(--outline-variant); }
   .panel:hover { border-color: rgba(0,243,255,0.4); }
+  .drop-zone { border: 2px dashed #00f3ff; background: rgba(0,243,255,0.03); height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; transition: all 0.2s; position: relative; }
+  .drop-zone.dragover { background: rgba(0,243,255,0.1); box-shadow: 0 0 20px rgba(0,243,255,0.2), inset 0 0 20px rgba(0,243,255,0.05); }
+  .drop-zone .dz-icon { font-size: 32px; color: rgba(0,243,255,0.5); }
+  .drop-zone .dz-text { font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--on-surface-variant); }
+  .file-row { display: grid; grid-template-columns: 28px 1fr 80px 80px 100px; gap: 8px; align-items: center; padding: 6px 8px; border-bottom: 1px solid rgba(58,73,75,0.4); font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+  .file-row:last-child { border-bottom: none; }
+  .file-row input[type="checkbox"] { accent-color: #00f3ff; width: 14px; height: 14px; }
+  .cli-toast { position: fixed; bottom: 24px; right: 24px; z-index: 200; background: rgba(0,0,0,0.95); border: 1px solid #fe00fe; box-shadow: 0 0 20px rgba(254,0,254,0.3); padding: 16px; max-width: 420px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #e2e2e2; transform: translateY(120%); transition: transform 0.3s ease; }
+  .cli-toast.show { transform: translateY(0); }
+  .cli-toast .cli-label { color: #fe00fe; text-transform: uppercase; letter-spacing: 0.15em; font-size: 10px; margin-bottom: 8px; }
+  .cli-toast pre { background: rgba(31,31,31,0.9); border: 1px solid #3a494b; padding: 10px; margin: 8px 0 0; white-space: pre-wrap; word-break: break-word; color: #b9cacb; }
 </style>
 </head>
 <body>
@@ -147,8 +158,61 @@
         </div>
       </div>
     </div>
+
+    <div class="mt-8 panel p-5 tech-border" id="upload-sector">
+      <div class="flex items-center justify-between mb-4 border-b border-[#3a494b]/50 pb-2">
+        <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest">/// UPLOAD.SECTOR</div>
+        <div class="font-mono text-[10px] text-[#849495]">DRAG_AND_DROP_MODULE</div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-1">
+          <div id="drop-zone" class="drop-zone tech-border">
+            <span class="material-symbols-outlined dz-icon">cloud_upload</span>
+            <span class="dz-text">Drop vault files here</span>
+            <span class="dz-text" style="color:#3a494b;">MD / TXT / JSON</span>
+          </div>
+          <div class="mt-3 flex items-center justify-between">
+            <label class="font-mono text-[10px] text-[#849495] flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" id="select-all" checked>
+              SELECT ALL
+            </label>
+            <button id="import-btn" class="px-4 py-2 border border-[#fe00fe] text-[#fe00fe] font-mono text-[10px] uppercase tracking-widest hover:bg-[#fe00fe]/10 transition-all">
+              INITIATE IMPORT
+            </button>
+          </div>
+        </div>
+        <div class="lg:col-span-2">
+          <div class="font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">Queued Objects</div>
+          <div id="file-list" class="border border-[#3a494b]/50 bg-[#0a0a0a]/60 max-h-[260px] overflow-y-auto">
+            <div class="file-row text-[#3a494b]">
+              <span></span>
+              <span>FILENAME</span>
+              <span>FORMAT</span>
+              <span>SIZE</span>
+              <span>STATUS</span>
+            </div>
+            <div id="file-list-body">
+              <div class="file-row text-[#849495] py-4">
+                <span></span>
+                <span class="col-span-4">NO OBJECTS IN QUEUE // AWING DROP</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </main>
+
+<div id="cli-toast" class="cli-toast">
+  <div class="cli-label">/// CLI.INSTRUCTION</div>
+  <div>Copy files to <span style="color:#00f3ff;">data/inbox/</span> and run:</div>
+  <pre>python main.py --brain data/inbox</pre>
+  <div class="mt-2 text-right">
+    <button id="close-cli" class="px-3 py-1 border border-[#849495]/40 text-[#849495] font-mono text-[10px] uppercase tracking-widest hover:bg-white/5 transition-all">DISMISS</button>
+  </div>
+</div>
 
 <script>
 (async () => {
@@ -163,6 +227,86 @@
   } catch(e) {
     document.getElementById('stat-nodes').textContent = 'ERR';
   }
+})();
+
+(function() {
+  const dropZone = document.getElementById('drop-zone');
+  const fileListBody = document.getElementById('file-list-body');
+  const selectAll = document.getElementById('select-all');
+  const importBtn = document.getElementById('import-btn');
+  const cliToast = document.getElementById('cli-toast');
+  const closeCli = document.getElementById('close-cli');
+  let files = [];
+
+  function fmtSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B','KB','MB','GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  function render() {
+    if (!files.length) {
+      fileListBody.innerHTML = '<div class="file-row text-[#849495] py-4"><span></span><span class="col-span-4">NO OBJECTS IN QUEUE // AWING DROP</span></div>';
+      return;
+    }
+    fileListBody.innerHTML = files.map((f, i) => {
+      const ext = (f.name.split('.').pop() || '').toUpperCase();
+      return `<div class="file-row">
+        <span><input type="checkbox" data-idx="${i}" ${f.selected ? 'checked' : ''}></span>
+        <span class="text-[#e2e2e2] truncate" title="${f.name.replace(/"/g, '&quot;')}">${f.name}</span>
+        <span class="text-[#00f3ff]">${ext}</span>
+        <span class="text-[#849495]">${fmtSize(f.size)}</span>
+        <span class="text-[#36fd0f]">READY</span>
+      </div>`;
+    }).join('');
+    fileListBody.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', e => {
+        const idx = +e.target.dataset.idx;
+        files[idx].selected = e.target.checked;
+        syncSelectAll();
+      });
+    });
+  }
+
+  function syncSelectAll() {
+    const all = files.length && files.every(f => f.selected);
+    selectAll.checked = all;
+  }
+
+  function addFiles(fileList) {
+    const accepted = Array.from(fileList).filter(f => /\.(md|txt|json)$/i.test(f.name));
+    const mapped = accepted.map(f => ({ file: f, name: f.name, size: f.size, selected: true }));
+    files = files.concat(mapped);
+    render();
+    syncSelectAll();
+  }
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    addFiles(e.dataTransfer.files);
+  });
+
+  selectAll.addEventListener('change', e => {
+    const checked = e.target.checked;
+    files.forEach(f => f.selected = checked);
+    render();
+  });
+
+  importBtn.addEventListener('click', () => {
+    const selected = files.filter(f => f.selected);
+    if (!selected.length) {
+      alert('NO FILES SELECTED // ABORT');
+      return;
+    }
+    cliToast.classList.add('show');
+  });
+
+  closeCli.addEventListener('click', () => cliToast.classList.remove('show'));
 })();
 </script>
 </body>
