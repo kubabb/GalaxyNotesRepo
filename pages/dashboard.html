@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PANEL DOWODZENIA – Galaxy-Pilot</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000000; --surface: #131313; --surface-container: #1f1f1f;
+    --on-surface: #e2e2e2; --on-surface-variant: #b9cacb;
+    --primary: #e3fdff; --primary-container: #00f3ff; --primary-dim: #00dce6;
+    --secondary: #ffabf3; --secondary-container: #fe00fe;
+    --tertiary: #e8ffda; --tertiary-container: #36fd0f;
+    --outline: #849495; --outline-variant: #3a494b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background: var(--bg); color: var(--on-surface); font-family: 'Inter', sans-serif; min-height: 100vh; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  .font-headline { font-family: 'Space Grotesk', sans-serif; }
+  .scanlines { position: fixed; inset: 0; z-index: 9999; pointer-events: none; mix-blend-mode: overlay; background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.05)); background-size: 100% 4px; }
+  .tech-border { position: relative; }
+  .tech-border::before, .tech-border::after { content: ''; position: absolute; width: 10px; height: 10px; border: 1px solid var(--primary-dim); }
+  .tech-border::before { top: 0; left: 0; border-right: none; border-bottom: none; }
+  .tech-border::after { bottom: 0; right: 0; border-left: none; border-top: none; }
+  .bloom-border { box-shadow: 0 0 10px rgba(0,243,255,0.3), inset 0 0 10px rgba(0,243,255,0.1); }
+  .glitch-hover:hover { transform: translateX(2px); background-color: rgba(0, 243, 255, 0.15); }
+
+  #sidebar { position: fixed; left: 0; top: 0; height: 100%; width: 56px; z-index: 100; background: rgba(0,0,0,0.92); backdrop-filter: blur(20px); border-right: 1px solid rgba(0,243,255,0.2); display: flex; flex-direction: column; padding-top: 16px; transition: width 0.3s ease; overflow: hidden; }
+  #sidebar:hover { width: 200px; }
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: rgba(0,243,255,0.4); font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; text-decoration: none; border-left: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
+  .nav-item:hover, .nav-item.active { color: #00f3ff; background: rgba(0,243,255,0.1); border-left-color: #00f3ff; }
+  .nav-item .nav-label { opacity: 0; transition: opacity 0.2s; }
+  #sidebar:hover .nav-label { opacity: 1; }
+
+  #topbar { position: fixed; top: 0; left: 56px; right: 0; height: 44px; z-index: 90; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,243,255,0.15); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+
+  .panel { background: rgba(19,19,19,0.9); border: 1px solid var(--outline-variant); }
+  .panel:hover { border-color: rgba(0,243,255,0.4); }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+
+<nav id="sidebar">
+  <a href="dashboard.html" class="nav-item active"><span class="material-symbols-outlined" style="font-size:20px;">dashboard</span><span class="nav-label">PANEL</span></a>
+  <a href="tactical.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">flight</span><span class="nav-label">WIZJER</span></a>
+  <a href="log.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">terminal</span><span class="nav-label">DZIENNIK</span></a>
+  <a href="settings.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">settings</span><span class="nav-label">SYSTEM</span></a>
+</nav>
+
+<div id="topbar">
+  <div class="font-mono text-xs text-[#00f3ff] tracking-widest uppercase">Panel Dowodzenia // Mission Control</div>
+  <div class="font-mono text-[10px] text-[#849495]">STATUS: ONLINE</div>
+</div>
+
+<main class="ml-14 pt-14 p-6 min-h-screen">
+  <div class="max-w-7xl mx-auto">
+    <div class="mb-8">
+      <div class="inline-block px-3 py-1 mb-3 border border-[#00f3ff]/30 text-[#00f3ff] font-mono text-[10px] tracking-[0.2em] uppercase">/// SYSTEM.OVERVIEW</div>
+      <h1 class="font-headline text-3xl text-[#e2e2e2] mb-2">PANEL DOWODZENIA</h1>
+      <p class="font-mono text-xs text-[#849495]">Monitorowanie stanu galaktyki wiedzy i statystyk systemu.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div class="panel p-5 tech-border">
+        <div class="font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">Gwiazdy</div>
+        <div class="font-headline text-3xl text-[#00f3ff]" id="stat-nodes">--</div>
+        <div class="font-mono text-[10px] text-[#849495] mt-1">Notatki zmapowane</div>
+      </div>
+      <div class="panel p-5 tech-border">
+        <div class="font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">Krawędzie</div>
+        <div class="font-headline text-3xl text-[#fe00fe]" id="stat-edges">--</div>
+        <div class="font-mono text-[10px] text-[#849495] mt-1">Powiązania WikiLink</div>
+      </div>
+      <div class="panel p-5 tech-border">
+        <div class="font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">Ramiona</div>
+        <div class="font-headline text-3xl text-[#36fd0f]" id="stat-arms">--</div>
+        <div class="font-mono text-[10px] text-[#849495] mt-1">Klastry semantyczne</div>
+      </div>
+      <div class="panel p-5 tech-border">
+        <div class="font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">Ostatni skan</div>
+        <div class="font-headline text-xl text-[#e2e2e2]" id="stat-last">--</div>
+        <div class="font-mono text-[10px] text-[#849495] mt-1">Timestamp</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2 panel p-5 tech-border">
+        <div class="flex items-center justify-between mb-4 border-b border-[#3a494b]/50 pb-2">
+          <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest">Aktywność systemu</div>
+          <div class="font-mono text-[10px] text-[#849495]">MOD_01A</div>
+        </div>
+        <div class="space-y-3 font-mono text-xs text-[#b9cacb]" id="activity-log">
+          <div class="flex items-center gap-3 p-2 border-l-2 border-[#00f3ff] bg-[#00f3ff]/5">
+            <span class="text-[#00f3ff]">&gt;</span>
+            <span>SYSTEM BOOT SEQUENCE INITIATED...</span>
+          </div>
+          <div class="flex items-center gap-3 p-2 border-l-2 border-transparent hover:bg-white/5">
+            <span class="text-[#849495]">_</span>
+            <span>Ładowanie danych galaktycznych z vaultu...</span>
+          </div>
+          <div class="flex items-center gap-3 p-2 border-l-2 border-transparent hover:bg-white/5">
+            <span class="text-[#849495]">_</span>
+            <span>Agent ASTRONOMER zakończył mapowanie współrzędnych.</span>
+          </div>
+          <div class="flex items-center gap-3 p-2 border-l-2 border-[#36fd0f] bg-[#36fd0f]/5">
+            <span class="text-[#36fd0f]">✓</span>
+            <span>Pipeline zakończony. Galaktyka gotowa do nawigacji.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel p-5 tech-border">
+        <div class="flex items-center justify-between mb-4 border-b border-[#3a494b]/50 pb-2">
+          <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest">Szybkie akcje</div>
+        </div>
+        <div class="flex flex-col gap-2">
+          <a href="tactical.html" class="block w-full py-3 px-4 border border-[#00f3ff]/40 text-[#00f3ff] font-mono text-[10px] uppercase tracking-widest text-center glitch-hover transition-all">
+            [ URUCHOM WIZJER 3D ]
+          </a>
+          <a href="log.html" class="block w-full py-3 px-4 border border-[#fe00fe]/40 text-[#fe00fe] font-mono text-[10px] uppercase tracking-widest text-center glitch-hover transition-all">
+            [ PRZEGLĄDAJ DZIENNIK ]
+          </a>
+          <a href="settings.html" class="block w-full py-3 px-4 border border-[#849495]/40 text-[#849495] font-mono text-[10px] uppercase tracking-widest text-center glitch-hover transition-all">
+            [ KONFIGURACJA ]
+          </a>
+        </div>
+        <div class="mt-4 pt-4 border-t border-[#3a494b]/50">
+          <div class="font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">System Health</div>
+          <div class="w-full h-2 bg-[#1f1f1f] border border-[#3a494b]">
+            <div class="h-full bg-[#00f3ff]" style="width: 94%"></div>
+          </div>
+          <div class="flex justify-between font-mono text-[10px] text-[#849495] mt-1">
+            <span>CPU: 12%</span>
+            <span>RAM: 94%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+(async () => {
+  try {
+    const res = await fetch('../data/output/galaxy_data.json');
+    const data = await res.json();
+    const meta = data.meta || {};
+    document.getElementById('stat-nodes').textContent = meta.node_count || Object.keys(data.nodes||{}).length;
+    document.getElementById('stat-edges').textContent = meta.edge_count || (data.edges||[]).length;
+    document.getElementById('stat-arms').textContent = meta.spiral_arms || '--';
+    document.getElementById('stat-last').textContent = new Date().toLocaleDateString('pl-PL');
+  } catch(e) {
+    document.getElementById('stat-nodes').textContent = 'ERR';
+  }
+})();
+</script>
+</body>
+</html>
