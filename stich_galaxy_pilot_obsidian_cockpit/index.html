@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galaxy-Pilot – Mission Control</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000000; --surface: #131313; --surface-container: #1f1f1f;
+    --on-surface: #e2e2e2; --on-surface-variant: #b9cacb;
+    --primary: #e3fdff; --primary-container: #00f3ff; --primary-dim: #00dce6;
+    --secondary: #ffabf3; --secondary-container: #fe00fe;
+    --tertiary: #e8ffda; --tertiary-container: #36fd0f;
+    --outline: #849495; --outline-variant: #3a494b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg); color: var(--on-surface);
+    font-family: 'Inter', sans-serif; overflow-x: hidden; min-height: 100vh;
+  }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  .font-headline { font-family: 'Space Grotesk', sans-serif; }
+
+  .scanlines {
+    position: fixed; inset: 0; z-index: 9999; pointer-events: none; mix-blend-mode: overlay;
+    background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.05));
+    background-size: 100% 4px;
+  }
+  .bloom-text { text-shadow: 0 0 10px rgba(0,243,255,0.8), 0 0 20px rgba(0,243,255,0.4); }
+  .bloom-border { box-shadow: 0 0 10px rgba(0,243,255,0.5), inset 0 0 10px rgba(0,243,255,0.2); }
+  .bloom-magenta { box-shadow: 0 0 10px rgba(254,0,254,0.5), inset 0 0 10px rgba(254,0,254,0.2); }
+  .glitch-hover:hover { transform: translateX(2px); background-color: rgba(0, 243, 255, 0.2); }
+
+  .tech-border { position: relative; }
+  .tech-border::before, .tech-border::after {
+    content: ''; position: absolute; width: 10px; height: 10px; border: 1px solid var(--primary-dim);
+  }
+  .tech-border::before { top: 0; left: 0; border-right: none; border-bottom: none; }
+  .tech-border::after { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .anim-in { animation: fadeInUp 0.6s ease forwards; }
+
+  .project-card {
+    background: rgba(19,19,19,0.9);
+    border: 1px solid var(--outline-variant);
+    transition: all 0.3s ease;
+  }
+  .project-card:hover {
+    border-color: var(--primary-container);
+    box-shadow: 0 0 15px rgba(0,243,255,0.3);
+  }
+
+  .loader {
+    border: 2px solid var(--outline-variant);
+    border-top: 2px solid var(--primary-container);
+    border-radius: 50%;
+    width: 40px; height: 40px;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="scanlines"></div>
+
+<!-- HEADER -->
+<header class="w-full border-b border-[#3a494b] bg-[#0a0a0a]/90 backdrop-blur-md sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-4">
+      <div class="w-10 h-10 border border-[#00f3ff] flex items-center justify-center">
+        <span class="font-mono text-[#00f3ff] text-lg">⌘</span>
+      </div>
+      <div>
+        <h1 class="font-headline text-xl font-bold text-[#00f3ff] bloom-text tracking-tight">GALAXY-PILOT</h1>
+        <p class="font-mono text-[10px] text-[#849495] tracking-widest">MISSION CONTROL v2.3</p>
+      </div>
+    </div>
+    <a href="../dist/index.html" class="px-6 py-2 border border-[#00f3ff] text-[#00f3ff] font-mono text-xs uppercase tracking-widest glitch-hover bloom-border tech-border transition-all">
+      [ Wejdź do kokpitu 3D ]
+    </a>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="relative w-full py-16 px-6">
+  <div class="max-w-7xl mx-auto">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Info panel -->
+      <div class="lg:col-span-2 space-y-6">
+        <div class="inline-block px-3 py-1 border border-[#00f3ff]/30 bg-[#00f3ff]/10 text-[#00f3ff] font-mono text-[10px] tracking-[0.2em] uppercase tech-border">
+          SYSTEM ONLINE // READY
+        </div>
+        <h2 class="font-headline text-4xl md:text-5xl font-bold text-[#00f3ff] bloom-text leading-tight">
+          CENTRUM DOWODZENIA
+        </h2>
+        <p class="font-mono text-sm text-[#b9cacb] max-w-xl leading-relaxed">
+          Zarządzaj swoimi galaktykami wiedzy. Przeglądaj poprzednie projekty, analizuj strukturę notatek i wchodź w interaktywny kokpit 3D.
+        </p>
+        <div class="flex flex-wrap gap-4 pt-4">
+          <a href="../dist/index.html" class="px-8 py-3 border border-[#00f3ff] text-[#00f3ff] font-headline text-sm bg-black/50 glitch-hover bloom-border tech-border uppercase tracking-widest transition-all">
+            [ STARTUJ SEKWENCJĘ 3D ]
+          </a>
+          <button onclick="scanProjects()" class="px-8 py-3 border border-[#fe00fe] text-[#fe00fe] font-headline text-sm bg-black/50 glitch-hover bloom-magenta tech-border uppercase tracking-widest transition-all">
+            [ SKANUJ PROJEKTY ]
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats panel -->
+      <div class="border border-[#3a494b] bg-[#131313]/80 p-6 tech-border">
+        <h3 class="font-headline text-lg text-[#00f3ff] mb-6 tracking-wide">STATYSTYKI SYSTEMU</h3>
+        <div id="stats-container" class="space-y-4">
+          <div class="flex justify-between items-center py-2 border-b border-[#3a494b]/50">
+            <span class="font-mono text-xs text-[#849495]">GWIAZDY</span>
+            <span id="stat-stars" class="font-mono text-sm text-[#00f3ff]">--</span>
+          </div>
+          <div class="flex justify-between items-center py-2 border-b border-[#3a494b]/50">
+            <span class="font-mono text-xs text-[#849495]">KRAWĘDZIE</span>
+            <span id="stat-edges" class="font-mono text-sm text-[#00f3ff]">--</span>
+          </div>
+          <div class="flex justify-between items-center py-2 border-b border-[#3a494b]/50">
+            <span class="font-mono text-xs text-[#849495]">RAMIONA</span>
+            <span id="stat-arms" class="font-mono text-sm text-[#00f3ff]">--</span>
+          </div>
+          <div class="flex justify-between items-center py-2 border-b border-[#3a494b]/50">
+            <span class="font-mono text-xs text-[#849495]">OSTATNI SKAN</span>
+            <span id="stat-date" class="font-mono text-sm text-[#00f3ff]">--</span>
+          </div>
+          <div class="flex justify-between items-center py-2">
+            <span class="font-mono text-xs text-[#849495]">STATUS</span>
+            <span id="stat-status" class="font-mono text-xs text-[#36fd0f]">● AKTYWNY</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROJECTS LIST -->
+<section class="w-full px-6 pb-20">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex items-center justify-between mb-8">
+      <h3 class="font-headline text-2xl text-[#e3fdff]">POPRZEDNIE PROJEKTY</h3>
+      <span id="project-count" class="font-mono text-xs text-[#849495] border border-[#3a494b] px-3 py-1">0 znalezionych</span>
+    </div>
+
+    <div id="loading-indicator" class="flex flex-col items-center justify-center py-16">
+      <div class="loader mb-4"></div>
+      <p class="font-mono text-xs text-[#849495]">Skanowanie archiwum galaktyk...</p>
+    </div>
+
+    <div id="projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" style="display:none;">
+      <!-- Cards injected by JS -->
+    </div>
+
+    <div id="empty-state" class="text-center py-16 border border-dashed border-[#3a494b]" style="display:none;">
+      <div class="font-headline text-2xl text-[#849495] mb-2">BRAK DANYCH</div>
+      <p class="font-mono text-xs text-[#849495] mb-6">Nie znaleziono wygenerowanych galaktyk. Uruchom pipeline, aby stworzyć pierwszy projekt.</p>
+      <code class="font-mono text-xs text-[#00f3ff] bg-[#131313] px-4 py-2 border border-[#3a494b]">python main.py</code>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="w-full border-t border-[#3a494b] bg-[#0a0a0a] py-6 px-6">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <div class="font-mono text-[10px] text-[#849495]">
+      GALAXY-PILOT v2.3 // OBSIDIAN COCKPIT SYSTEM
+    </div>
+    <div class="font-mono text-[10px] text-[#849495]">
+      WASD – Lot | Mysz – Obrót | Shift – Warp
+    </div>
+  </div>
+</footer>
+
+<script>
+const API_BASE = '../data/output/';
+
+async function fetchJSON(path) {
+  try {
+    const res = await fetch(path);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    console.warn('Fetch error:', e);
+    return null;
+  }
+}
+
+function formatDate() {
+  const now = new Date();
+  return now.toLocaleDateString('pl-PL') + ' ' + now.toLocaleTimeString('pl-PL', {hour:'2-digit', minute:'2-digit'});
+}
+
+async function scanProjects() {
+  const grid = document.getElementById('projects-grid');
+  const loader = document.getElementById('loading-indicator');
+  const empty = document.getElementById('empty-state');
+  const countLabel = document.getElementById('project-count');
+
+  grid.style.display = 'none';
+  empty.style.display = 'none';
+  loader.style.display = 'flex';
+
+  const galaxy = await fetchJSON(API_BASE + 'galaxy_data.json');
+  const meta = await fetchJSON(API_BASE + 'metadata.json');
+
+  loader.style.display = 'none';
+
+  if (!galaxy || !galaxy.nodes || Object.keys(galaxy.nodes).length === 0) {
+    empty.style.display = 'block';
+    countLabel.textContent = '0 znalezionych';
+    updateStats(null);
+    return;
+  }
+
+  updateStats(galaxy);
+
+  // Build project card (in this context, the current galaxy is the project)
+  const nodeCount = galaxy.meta?.node_count || Object.keys(galaxy.nodes).length;
+  const edgeCount = galaxy.meta?.edge_count || (galaxy.edges?.length || 0);
+  const armCount = galaxy.meta?.spiral_arms || 0;
+
+  const card = document.createElement('div');
+  card.className = 'project-card p-6 anim-in';
+  card.innerHTML = `
+    <div class="flex items-center justify-between mb-4">
+      <div class="font-headline text-lg text-[#00f3ff]">Galaktyka BRAIN</div>
+      <span class="font-mono text-[10px] text-[#36fd0f] border border-[#36fd0f]/30 px-2 py-0.5">AKTYWNY</span>
+    </div>
+    <div class="space-y-2 mb-6">
+      <div class="flex justify-between font-mono text-xs">
+        <span class="text-[#849495]">Węzły:</span>
+        <span class="text-[#e3fdff]">${nodeCount}</span>
+      </div>
+      <div class="flex justify-between font-mono text-xs">
+        <span class="text-[#849495]">Krawędzie:</span>
+        <span class="text-[#e3fdff]">${edgeCount}</span>
+      </div>
+      <div class="flex justify-between font-mono text-xs">
+        <span class="text-[#849495]">Ramiona:</span>
+        <span class="text-[#e3fdff]">${armCount}</span>
+      </div>
+      <div class="flex justify-between font-mono text-xs">
+        <span class="text-[#849495]">Ostatni skan:</span>
+        <span class="text-[#e3fdff]">${formatDate()}</span>
+      </div>
+    </div>
+    <a href="../dist/index.html" class="block w-full text-center py-2 border border-[#00f3ff] text-[#00f3ff] font-mono text-xs uppercase tracking-widest glitch-hover transition-all">
+      [ Otwórz w kokpicie 3D ]
+    </a>
+  `;
+
+  grid.innerHTML = '';
+  grid.appendChild(card);
+  grid.style.display = 'grid';
+  countLabel.textContent = '1 projekt';
+
+  // Also add any additional detected galaxy files if we had history
+  // For now we show the current one
+}
+
+function updateStats(galaxy) {
+  if (!galaxy) {
+    document.getElementById('stat-stars').textContent = '--';
+    document.getElementById('stat-edges').textContent = '--';
+    document.getElementById('stat-arms').textContent = '--';
+    document.getElementById('stat-date').textContent = '--';
+    return;
+  }
+  const nodeCount = galaxy.meta?.node_count || Object.keys(galaxy.nodes).length;
+  const edgeCount = galaxy.meta?.edge_count || (galaxy.edges?.length || 0);
+  const armCount = galaxy.meta?.spiral_arms || 0;
+
+  document.getElementById('stat-stars').textContent = nodeCount;
+  document.getElementById('stat-edges').textContent = edgeCount;
+  document.getElementById('stat-arms').textContent = armCount;
+  document.getElementById('stat-date').textContent = formatDate();
+}
+
+// Auto-scan on load
+scanProjects();
+</script>
+
+</body>
+</html>

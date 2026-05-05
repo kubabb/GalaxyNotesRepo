@@ -1,6 +1,6 @@
 ---
 title: "git_manager"
-date: 2026-05-05T11:02:21
+date: 2026-05-05T12:13:38
 type: SourceFile
 source: GalaxyNotes
 tags: #python #backend #agent
@@ -12,7 +12,7 @@ Moduł Python zawierający 4 funkcji. Główne: _run_git, _get_remote_url, ensur
 
 - **Rozszerzenie:** .py
 - **Lokalizacja:** `src/git_manager.py`
-- **Liczba linii:** ~100
+- **Liczba linii:** ~99
 
 ### Powiązane
 [[os]] [[sys]] [[subprocess]] [[logging]] [[pathlib]] [[dotenv]] [[env_guard]] [[debugger]]

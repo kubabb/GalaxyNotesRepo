@@ -61,14 +61,13 @@ def _run_git(args: list, cwd: Path = None, check: bool = True, silent: bool = Tr
     return result
 
 
-def _get_remote_url() -> str:
-    """Buduje URL remote z GITHUB_TOKEN i GITHUB_REPO z .env."""
+def _get_remote_url() -> str | None:
+    """Buduje URL remote z GITHUB_TOKEN i GITHUB_REPO z .env.
+    Jeśli brak tokena – zwraca None (używamy istniejącego remote)."""
     token = os.getenv("GITHUB_TOKEN", "").strip()
     repo = os.getenv("GITHUB_REPO", "").strip()
-    if not token:
-        raise RuntimeError("Brak GITHUB_TOKEN w config/.env")
-    if not repo:
-        raise RuntimeError("Brak GITHUB_REPO w config/.env")
+    if not token or not repo:
+        return None
 
     if repo.startswith("http"):
         if "@" in repo:
@@ -87,16 +86,22 @@ def ensure_git_repo():
 
 
 def ensure_remote():
-    """Sprawdza czy remote 'origin' istnieje; dodaje/aktualizuje jeśli nie."""
+    """Sprawdza czy remote 'origin' istnieje.
+    Jeśli nie – próbuje dodać z GITHUB_TOKEN. Jeśli brak tokena – loguje info i puszuje bez remote (lokalnie)."""
     try:
         result = _run_git(["remote"], silent=True)
         remotes = result.stdout.strip().splitlines() if result.stdout else []
         url = _get_remote_url()
         if "origin" not in remotes:
-            logger.info("Dodaję remote origin...")
-            _run_git(["remote", "add", "origin", url], silent=True)
+            if url:
+                logger.info("Dodaję remote origin z tokenem...")
+                _run_git(["remote", "add", "origin", url], silent=True)
+            else:
+                logger.warning("Brak GITHUB_TOKEN – używam istniejącego remote lub push lokalny")
         else:
-            _run_git(["remote", "set-url", "origin", url], silent=True)
+            # Jeśli mamy token – aktualizujemy URL; jeśli nie – zostawiamy jak jest
+            if url:
+                _run_git(["remote", "set-url", "origin", url], silent=True)
     except RuntimeError:
         raise
 
@@ -105,7 +110,7 @@ def push_per_file(filename: str) -> bool:
     """
     Wykonuje: git add . → git commit → git push.
     Commit: "Galaxy Pilot: Mapping star [filename]"
-    Używa GITHUB_REPO i GITHUB_TOKEN z config/.env.
+    Jeśli brak GITHUB_TOKEN – pushuje przez istniejący remote (SSH/HTTPS credentials).
     Jeśli push zawodzi – loguje błąd i kontynuuje (nie przerywa pipeline).
     Zwraca True/False.
     """
