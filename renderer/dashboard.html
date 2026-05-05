@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PANEL DOWODZENIA – Galaxy-Pilot</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000000; --surface: #131313; --surface-container: #1f1f1f;
+    --on-surface: #e2e2e2; --on-surface-variant: #b9cacb;
+    --primary: #e3fdff; --primary-container: #00f3ff; --primary-dim: #00dce6;
+    --secondary: #ffabf3; --secondary-container: #fe00fe;
+    --tertiary: #e8ffda; --tertiary-container: #36fd0f;
+    --outline: #849495; --outline-variant: #3a494b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background: var(--bg); color: var(--on-surface); font-family: 'Inter', sans-serif; min-height: 100vh; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  .font-headline { font-family: 'Space Grotesk', sans-serif; }
+  .scanlines { position: fixed; inset: 0; z-index: 9999; pointer-events: none; mix-blend-mode: overlay; background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.05)); background-size: 100% 4px; }
+  .tech-border { position: relative; }
+  .tech-border::before, .tech-border::after { content: ''; position: absolute; width: 10px; height: 10px; border: 1px solid var(--primary-dim); }
+  .tech-border::before { top: 0; left: 0; border-right: none; border-bottom: none; }
+  .tech-border::after { bottom: 0; right: 0; border-left: none; border-top: none; }
+  .bloom-border { box-shadow: 0 0 10px rgba(0,243,255,0.3), inset 0 0 10px rgba(0,243,255,0.1); }
+  .glitch-hover:hover { transform: translateX(2px); background-color: rgba(0, 243, 255, 0.15); }
+
+  #sidebar { position: fixed; left: 0; top: 0; height: 100%; width: 56px; z-index: 100; background: rgba(0,0,0,0.92); backdrop-filter: blur(20px); border-right: 1px solid rgba(0,243,255,0.2); display: flex; flex-direction: column; padding-top: 16px; transition: width 0.3s ease; overflow: hidden; }
+  #sidebar:hover { width: 200px; }
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: rgba(0,243,255,0.4); font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; text-decoration: none; border-left: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
+  .nav-item:hover, .nav-item.active { color: #00f3ff; background: rgba(0,243,255,0.1); border-left-color: #00f3ff; }
+  .nav-item .nav-label { opacity: 0; transition: opacity 0.2s; }
+  #sidebar:hover .nav-label { opacity: 1; }
+
+  #topbar { position: fixed; top: 0; left: 56px; right: 0; height: 44px; z-index: 90; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,243,255,0.15); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+
+  .panel { background: rgba(19,19,19,0.9); border: 1px solid var(--outline-variant); }
+  .panel:hover { border-color: rgba(0,243,255,0.4); }
+  .drop-zone { border: 2px dashed #00f3ff; background: rgba(0,243,255,0.03); height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; transition: all 0.2s; position: relative; }
+  .drop-zone.dragover { background: rgba(0,243,255,0.1); box-shadow: 0 0 20px rgba(0,243,255,0.2), inset 0 0 20px rgba(0,243,255,0.05); }
+  .drop-zone .dz-icon { font-size: 32px; color: rgba(0,243,255,0.5); }
+  .drop-zone .dz-text { font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--on-surface-variant); }
+  .file-row { display: grid; grid-template-columns: 28px 1fr 80px 80px 100px; gap: 8px; align-items: center; padding: 6px 8px; border-bottom: 1px solid rgba(58,73,75,0.4); font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+  .file-row:last-child { border-bottom: none; }
+  .file-row input[type="checkbox"] { accent-color: #00f3ff; width: 14px; height: 14px; }
+  .cli-toast { position: fixed; bottom: 24px; right: 24px; z-index: 200; background: rgba(0,0,0,0.95); border: 1px solid #fe00fe; box-shadow: 0 0 20px rgba(254,0,254,0.3); padding: 16px; max-width: 420px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #e2e2e2; transform: translateY(120%); transition: transform 0.3s ease; }
+  .cli-toast.show { transform: translateY(0); }
+  .cli-toast .cli-label { color: #fe00fe; text-transform: uppercase; letter-spacing: 0.15em; font-size: 10px; margin-bottom: 8px; }
+  .cli-toast pre { background: rgba(31,31,31,0.9); border: 1px solid #3a494b; padding: 10px; margin: 8px 0 0; white-space: pre-wrap; word-break: break-word; color: #b9cacb; }
+  .upload-btn { border: 1px solid #00f3ff; color: #00f3ff; font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; padding: 8px 12px; background: transparent; cursor: pointer; transition: all 0.2s; flex: 1; text-align: center; }
+  .upload-btn:hover { background: rgba(0,243,255,0.15); }
+  .history-row { display: flex; align-items: center; justify-content: space-between; padding: 8px; border: 1px solid rgba(58,73,75,0.4); font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+  .history-row .h-name { color: #e2e2e2; }
+  .history-row .h-date { color: #849495; }
+  .history-btn { border: 1px solid #00f3ff; color: #00f3ff; background: transparent; font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; padding: 4px 8px; cursor: pointer; }
+  .history-btn:hover { background: rgba(0,243,255,0.15); }
+  .history-btn.remove { border-color: #ff3333; color: #ff3333; }
+  .history-btn.remove:hover { background: rgba(255,51,51,0.15); }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+
+<nav id="sidebar">
+  <a href="../index.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">home</span><span class="nav-label">ONBOARDING</span></a>
+  <a href="dashboard.html" class="nav-item active"><span class="material-symbols-outlined" style="font-size:20px;">dashboard</span><span class="nav-label">PANEL</span></a>
+  <a href="tactical.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">flight</span><span class="nav-label">WIZJER</span></a>
+  <a href="log.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">terminal</span><span class="nav-label">DZIENNIK</span></a>
+  <a href="settings.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">settings</span><span class="nav-label">SYSTEM</span></a>
+</nav>
+
+<div id="topbar">
+  <div class="font-mono text-xs text-[#00f3ff] tracking-widest uppercase">Panel Dowodzenia // Mission Control</div>
+  <div class="flex items-center gap-3">
+    <div class="font-mono text-[10px] text-[#849495] flex items-center gap-1.5">
+      <span class="inline-block w-1.5 h-1.5 bg-[#00f3ff] rounded-full"></span>
+      STWORZONO W POLSCE
+    </div>
+    <div class="font-mono text-[10px] text-[#849495]">STATUS: ONLINE</div>
+  </div>
+</div>
+
+<main class="ml-14 pt-14 p-6 min-h-screen">
+  <div class="max-w-7xl mx-auto">
+    <div class="mb-8">
+      <div class="inline-block px-3 py-1 mb-3 border border-[#00f3ff]/30 text-[#00f3ff] font-mono text-[10px] tracking-[0.2em] uppercase">/// SYSTEM.OVERVIEW</div>
+      <h1 class="font-headline text-3xl text-[#e2e2e2] mb-2">PANEL DOWODZENIA</h1>
+      <p class="font-mono text-xs text-[#849495]">Monitorowanie stanu galaktyki wiedzy i statystyk systemu.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div class="panel p-5 tech-border">
+        <div class="font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">Gwiazdy</div>
+        <div class="font-headline text-3xl text-[#00f3ff]" id="stat-nodes">--</div>
+        <div class="font-mono text-[10px] text-[#849495] mt-1">Notatki zmapowane</div>
+      </div>
+      <div class="panel p-5 tech-border">
+        <div class="font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">Krawędzie</div>
+        <div class="font-headline text-3xl text-[#fe00fe]" id="stat-edges">--</div>
+        <div class="font-mono text-[10px] text-[#849495] mt-1">Powiązania WikiLink</div>
+      </div>
+      <div class="panel p-5 tech-border">
+        <div class="font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">Ramiona</div>
+        <div class="font-headline text-3xl text-[#36fd0f]" id="stat-arms">--</div>
+        <div class="font-mono text-[10px] text-[#849495] mt-1">Klastry semantyczne</div>
+      </div>
+      <div class="panel p-5 tech-border">
+        <div class="font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">Ostatni skan</div>
+        <div class="font-headline text-xl text-[#e2e2e2]" id="stat-last">--</div>
+        <div class="font-mono text-[10px] text-[#849495] mt-1">Timestamp</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2 panel p-5 tech-border">
+        <div class="flex items-center justify-between mb-4 border-b border-[#3a494b]/50 pb-2">
+          <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest">Aktywność systemu</div>
+          <div class="font-mono text-[10px] text-[#849495]">MOD_01A</div>
+        </div>
+        <div class="space-y-3 font-mono text-xs text-[#b9cacb]" id="activity-log">
+          <div class="flex items-center gap-3 p-2 border-l-2 border-[#00f3ff] bg-[#00f3ff]/5">
+            <span class="text-[#00f3ff]">&gt;</span>
+            <span>SYSTEM BOOT SEQUENCE INITIATED...</span>
+          </div>
+          <div class="flex items-center gap-3 p-2 border-l-2 border-transparent hover:bg-white/5">
+            <span class="text-[#849495]">_</span>
+            <span>Ładowanie danych galaktycznych z vaultu...</span>
+          </div>
+          <div class="flex items-center gap-3 p-2 border-l-2 border-transparent hover:bg-white/5">
+            <span class="text-[#849495]">_</span>
+            <span>Agent ASTRONOMER zakończył mapowanie współrzędnych.</span>
+          </div>
+          <div class="flex items-center gap-3 p-2 border-l-2 border-[#36fd0f] bg-[#36fd0f]/5">
+            <span class="text-[#36fd0f]">✓</span>
+            <span>Pipeline zakończony. Galaktyka gotowa do nawigacji.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel p-5 tech-border">
+        <div class="flex items-center justify-between mb-4 border-b border-[#3a494b]/50 pb-2">
+          <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest">Szybkie akcje</div>
+        </div>
+        <div class="flex flex-col gap-2">
+          <a href="tactical.html" class="block w-full py-3 px-4 border border-[#00f3ff]/40 text-[#00f3ff] font-mono text-[10px] uppercase tracking-widest text-center glitch-hover transition-all">
+            [ URUCHOM WIZJER 3D ]
+          </a>
+          <a href="log.html" class="block w-full py-3 px-4 border border-[#fe00fe]/40 text-[#fe00fe] font-mono text-[10px] uppercase tracking-widest text-center glitch-hover transition-all">
+            [ PRZEGLĄDAJ DZIENNIK ]
+          </a>
+          <a href="settings.html" class="block w-full py-3 px-4 border border-[#849495]/40 text-[#849495] font-mono text-[10px] uppercase tracking-widest text-center glitch-hover transition-all">
+            [ KONFIGURACJA ]
+          </a>
+        </div>
+        <div class="mt-4 pt-4 border-t border-[#3a494b]/50">
+          <div class="font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">System Health</div>
+          <div class="w-full h-2 bg-[#1f1f1f] border border-[#3a494b]">
+            <div class="h-full bg-[#00f3ff]" style="width: 94%"></div>
+          </div>
+          <div class="flex justify-between font-mono text-[10px] text-[#849495] mt-1">
+            <span>CPU: 12%</span>
+            <span>RAM: 94%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel p-4 tech-border mb-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <span class="font-mono text-[10px] text-[#849495] uppercase tracking-widest">Active Project</span>
+          <div class="font-headline text-lg text-[#00f3ff]" id="active-project-name">DEFAULT</div>
+        </div>
+        <button onclick="switchProject()" class="px-3 py-1 border border-[#849495]/40 text-[#849495] font-mono text-[10px] uppercase hover:bg-white/5">SWITCH</button>
+      </div>
+    </div>
+
+    <div class="mt-8 panel p-5 tech-border" id="upload-sector">
+      <div class="flex items-center justify-between mb-4 border-b border-[#3a494b]/50 pb-2">
+        <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest">/// UPLOAD.SECTOR</div>
+        <div class="font-mono text-[10px] text-[#849495]">DRAG_AND_DROP_MODULE</div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-1">
+          <div id="drop-zone" class="drop-zone tech-border">
+            <span class="material-symbols-outlined dz-icon">cloud_upload</span>
+            <span class="dz-text">Drop files or folders here</span>
+            <span class="dz-text" style="color:#3a494b;">MD / TXT / PDF / DOCX / HTML / PY / JS / JSON</span>
+          </div>
+          <div class="mt-3 flex gap-2">
+            <button id="btn-files" class="upload-btn tech-border">[ SELECT FILES ]</button>
+            <button id="btn-folder" class="upload-btn tech-border">[ SELECT FOLDER ]</button>
+          </div>
+          <input type="file" id="file-input" multiple style="display:none;" accept=".md,.txt,.pdf,.docx,.html,.py,.js,.json">
+          <input type="file" id="folder-input" webkitdirectory directory style="display:none;">
+          <div class="mt-3 flex items-center justify-between">
+            <label class="font-mono text-[10px] text-[#849495] flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" id="select-all" checked>
+              SELECT ALL
+            </label>
+            <button id="import-btn" class="px-4 py-2 border border-[#fe00fe] text-[#fe00fe] font-mono text-[10px] uppercase tracking-widest hover:bg-[#fe00fe]/10 transition-all">
+              INITIATE IMPORT
+            </button>
+          </div>
+          <div class="mt-4 flex gap-2">
+            <button id="btn-new-project" class="flex-1 py-2 border border-[#36fd0f] text-[#36fd0f] font-mono text-[10px] uppercase tracking-widest hover:bg-[#36fd0f]/10 transition-all">
+              [ NEW PROJECT ]
+            </button>
+            <button id="btn-add-project" class="flex-1 py-2 border border-[#00f3ff] text-[#00f3ff] font-mono text-[10px] uppercase tracking-widest hover:bg-[#00f3ff]/10 transition-all">
+              [ ADD TO PROJECT ]
+            </button>
+          </div>
+        </div>
+        <div class="lg:col-span-2">
+          <div class="font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">Queued Objects</div>
+          <div id="file-list" class="border border-[#3a494b]/50 bg-[#0a0a0a]/60 max-h-[260px] overflow-y-auto">
+            <div class="file-row text-[#3a494b]">
+              <span></span>
+              <span>FILENAME</span>
+              <span>FORMAT</span>
+              <span>SIZE</span>
+              <span>STATUS</span>
+            </div>
+            <div id="file-list-body">
+              <div class="file-row text-[#849495] py-4">
+                <span></span>
+                <span class="col-span-4">NO OBJECTS IN QUEUE // AWING DROP</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-8 panel p-5 tech-border" id="history-sector">
+      <div class="flex items-center justify-between mb-4 border-b border-[#3a494b]/50 pb-2">
+        <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest">/// PROJECT.HISTORY</div>
+        <div class="font-mono text-[10px] text-[#849495]">LOCALSTORAGE_ARCHIVE</div>
+      </div>
+      <div id="history-list" class="space-y-2">
+        <div class="history-row text-[#849495]">
+          <span>NO HISTORY // BEGIN NEW MISSION</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div id="new-project-modal" style="display:none; position:fixed; inset:0; z-index:300; background:rgba(0,0,0,0.92); backdrop-filter:blur(8px); align-items:center; justify-content:center;">
+  <div class="tech-border bloom-border p-6 max-w-md bg-[#0a0a0a] border border-[#36fd0f] relative">
+    <span class="close-btn" onclick="closeNewProjectModal()" style="position:absolute; top:8px; right:12px; font-size:20px; cursor:pointer; color:#849495;">×</span>
+    <h2 class="font-headline text-[#36fd0f] text-lg mb-4 bloom-text tracking-wider">NEW PROJECT</h2>
+    <p class="font-mono text-xs text-[#b9cacb] mb-4">Enter project name:</p>
+    <input type="text" id="new-project-name" placeholder="MY_PROJECT" class="w-full bg-[#1f1f1f] border border-[#3a494b] text-[#e2e2e2] font-mono text-xs p-3 mb-4 uppercase">
+    <div class="flex gap-3">
+      <button class="enter-btn" onclick="createNewProject()" style="flex:1; border:1px solid #36fd0f; color:#36fd0f; background:transparent; font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; padding:8px 12px; cursor:pointer;">CREATE</button>
+      <button class="enter-btn" onclick="closeNewProjectModal()" style="flex:1; border:1px solid #849495; color:#849495; background:transparent; font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; padding:8px 12px; cursor:pointer;">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<div id="add-project-modal" style="display:none; position:fixed; inset:0; z-index:300; background:rgba(0,0,0,0.92); backdrop-filter:blur(8px); align-items:center; justify-content:center;">
+  <div class="tech-border bloom-border p-6 max-w-md bg-[#0a0a0a] border border-[#00f3ff] relative">
+    <span class="close-btn" onclick="closeAddProjectModal()" style="position:absolute; top:8px; right:12px; font-size:20px; cursor:pointer; color:#849495;">×</span>
+    <h2 class="font-headline text-[#00f3ff] text-lg mb-4 bloom-text tracking-wider">ADD TO PROJECT</h2>
+    <p class="font-mono text-xs text-[#b9cacb] mb-4">Select target project:</p>
+    <div id="add-project-list" class="space-y-2 max-h-[200px] overflow-y-auto mb-4"></div>
+    <div class="flex gap-3">
+      <button class="enter-btn" onclick="closeAddProjectModal()" style="flex:1; border:1px solid #849495; color:#849495; background:transparent; font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; padding:8px 12px; cursor:pointer;">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<div id="cli-toast" class="cli-toast">
+  <div class="cli-label">/// CLI.INSTRUCTION</div>
+  <div>Copy files to <span style="color:#00f3ff;">data/inbox/</span> and run:</div>
+  <pre>python main.py --brain data/inbox</pre>
+  <div class="mt-2 text-right">
+    <button id="close-cli" class="px-3 py-1 border border-[#849495]/40 text-[#849495] font-mono text-[10px] uppercase tracking-widest hover:bg-white/5 transition-all">DISMISS</button>
+  </div>
+</div>
+
+<script>
+(async () => {
+  try {
+    const res = await fetch('../data/output/galaxy_data.json');
+    const data = await res.json();
+    const meta = data.meta || {};
+    document.getElementById('stat-nodes').textContent = meta.node_count || Object.keys(data.nodes||{}).length;
+    document.getElementById('stat-edges').textContent = meta.edge_count || (data.edges||[]).length;
+    document.getElementById('stat-arms').textContent = meta.spiral_arms || '--';
+    document.getElementById('stat-last').textContent = new Date().toLocaleDateString('pl-PL');
+  } catch(e) {
+    document.getElementById('stat-nodes').textContent = 'ERR';
+  }
+})();
+
+(function() {
+  const dropZone = document.getElementById('drop-zone');
+  const fileListBody = document.getElementById('file-list-body');
+  const selectAll = document.getElementById('select-all');
+  const importBtn = document.getElementById('import-btn');
+  const cliToast = document.getElementById('cli-toast');
+  const closeCli = document.getElementById('close-cli');
+  const fileInput = document.getElementById('file-input');
+  const folderInput = document.getElementById('folder-input');
+  const btnFiles = document.getElementById('btn-files');
+  const btnFolder = document.getElementById('btn-folder');
+  const historyList = document.getElementById('history-list');
+  let files = [];
+  const ALLOWED_RE = /\.(md|txt|pdf|docx|html|py|js|json)$/i;
+  const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
+
+  function fmtSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B','KB','MB','GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  function render() {
+    if (!files.length) {
+      fileListBody.innerHTML = '<div class="file-row text-[#849495] py-4"><span></span><span class="col-span-4">NO OBJECTS IN QUEUE // DROP OR SELECT FILES</span></div>';
+      return;
+    }
+    fileListBody.innerHTML = files.map((f, i) => {
+      const ext = (f.name.split('.').pop() || '').toUpperCase();
+      const status = f.size > MAX_SIZE ? '<span class="text-[#ff3333]">TOO LARGE</span>' : '<span class="text-[#36fd0f]">READY</span>';
+      const relPath = f.file._relativePath || f.name;
+      return `<div class="file-row">
+        <span><input type="checkbox" data-idx="${i}" ${f.selected ? 'checked' : ''}></span>
+        <span class="text-[#e2e2e2] truncate" title="${relPath.replace(/"/g, '&quot;')}">${f.name}</span>
+        <span class="text-[#00f3ff]">${ext}</span>
+        <span class="text-[#849495]">${fmtSize(f.size)}</span>
+        ${status}
+      </div>`;
+    }).join('');
+    fileListBody.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', e => {
+        const idx = +e.target.dataset.idx;
+        files[idx].selected = e.target.checked;
+        syncSelectAll();
+      });
+    });
+  }
+
+  function syncSelectAll() {
+    const all = files.length && files.every(f => f.selected);
+    selectAll.checked = all;
+  }
+
+  function addFiles(fileList) {
+    const accepted = Array.from(fileList).filter(f => ALLOWED_RE.test(f.name));
+    const mapped = accepted.map(f => ({ file: f, name: f.name, size: f.size, selected: true }));
+    files = files.concat(mapped);
+    render();
+    syncSelectAll();
+  }
+
+  // --- Layer 1: File System Access API ---
+  async function scanDir(handle, path='', out=[]) {
+    for await (const [name, entry] of handle.entries()) {
+      if (entry.kind === 'file') {
+        const f = await entry.getFile();
+        f._relativePath = path + name;
+        out.push(f);
+      } else if (entry.kind === 'directory') {
+        await scanDir(entry, path + name + '/', out);
+      }
+    }
+    return out;
+  }
+
+  async function pickFolder() {
+    try {
+      const dirHandle = await window.showDirectoryPicker();
+      const out = [];
+      await scanDir(dirHandle, '', out);
+      addFiles(out);
+      saveToHistory(dirHandle.name, 'fsa');
+    } catch (e) {
+      console.log('User cancelled or FSA not available');
+    }
+  }
+
+  // --- Layer 2: webkitdirectory fallback ---
+  folderInput.addEventListener('change', e => {
+    const files = Array.from(e.target.files).map(f => {
+      f._relativePath = f.webkitRelativePath || f.name;
+      return f;
+    });
+    addFiles(files);
+    if (files.length) {
+      const folderName = files[0]._relativePath.split('/')[0];
+      saveToHistory(folderName, 'folder');
+    }
+    folderInput.value = '';
+  });
+
+  btnFiles.addEventListener('click', () => fileInput.click());
+  btnFolder.addEventListener('click', () => {
+    if ('showDirectoryPicker' in window) {
+      pickFolder();
+    } else {
+      folderInput.click();
+    }
+  });
+
+  fileInput.addEventListener('change', e => {
+    const files = Array.from(e.target.files).map(f => {
+      f._relativePath = f.name;
+      return f;
+    });
+    addFiles(files);
+    fileInput.value = '';
+  });
+
+  // --- Layer 3: Drag & Drop ---
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+
+  dropZone.addEventListener('drop', async e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    const items = e.dataTransfer.items;
+    if (items && items.length && items[0].getAsFileSystemHandle) {
+      const collected = [];
+      for (let i = 0; i < items.length; i++) {
+        try {
+          const handle = await items[i].getAsFileSystemHandle();
+          if (handle) {
+            if (handle.kind === 'file') {
+              const f = await handle.getFile();
+              f._relativePath = f.name;
+              collected.push(f);
+            } else if (handle.kind === 'directory') {
+              await scanDir(handle, '', collected);
+            }
+          }
+        } catch (err) { console.log('FS handle error', err); }
+      }
+      addFiles(collected);
+    } else if (e.dataTransfer.files && e.dataTransfer.files.length) {
+      const files = Array.from(e.dataTransfer.files).map(f => {
+        f._relativePath = f.webkitRelativePath || f.name;
+        return f;
+      });
+      addFiles(files);
+    }
+  });
+
+  selectAll.addEventListener('change', e => {
+    const checked = e.target.checked;
+    files.forEach(f => f.selected = checked);
+    render();
+  });
+
+  importBtn.addEventListener('click', () => {
+    const selected = files.filter(f => f.selected && f.size <= MAX_SIZE);
+    if (!selected.length) {
+      alert('NO VALID FILES SELECTED // ABORT');
+      return;
+    }
+    // Generate PowerShell script for download
+    const inboxPath = 'data/inbox';
+    let ps1 = `# GalaxyNotesProject – Auto-Import Script\r\n`;
+    ps1 += `# Generated: ${new Date().toISOString()}\r\n`;
+    ps1 += `$inbox = Join-Path $PSScriptRoot "${inboxPath}"\r\n`;
+    ps1 += `New-Item -ItemType Directory -Path $inbox -Force | Out-Null\r\n`;
+    selected.forEach((f, i) => {
+      ps1 += `# ${f.name} (${fmtSize(f.size)})\r\n`;
+    });
+    ps1 += `Write-Host "Copy the following files to: $inbox" -ForegroundColor Cyan\r\n`;
+    ps1 += `Write-Host "Then run: python main.py --brain $inbox" -ForegroundColor Magenta\r\n`;
+    ps1 += `pause\r\n`;
+
+    const blob = new Blob([ps1], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'import_notes.ps1';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    cliToast.querySelector('pre').textContent = `1. Downloaded import_notes.ps1\\n2. Place selected files in data/inbox/\\n3. Run: python main.py --brain data/inbox`;
+    cliToast.classList.add('show');
+  });
+
+  closeCli.addEventListener('click', () => cliToast.classList.remove('show'));
+
+  // --- History ---
+  function saveToHistory(name, type='folder') {
+    const history = JSON.parse(localStorage.getItem('galaxy_history') || '[]');
+    history.unshift({ name, type, date: new Date().toISOString() });
+    localStorage.setItem('galaxy_history', JSON.stringify(history.slice(0, 10)));
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const history = JSON.parse(localStorage.getItem('galaxy_history') || '[]');
+    if (!history.length) {
+      historyList.innerHTML = '<div class="history-row text-[#849495]"><span>NO HISTORY // BEGIN NEW MISSION</span></div>';
+      return;
+    }
+    historyList.innerHTML = history.slice(0, 5).map((h, i) => {
+      const d = new Date(h.date).toLocaleDateString('pl-PL');
+      return `<div class="history-row">
+        <div class="flex items-center gap-3">
+          <span class="h-name">${h.name}</span>
+          <span class="h-date">${d}</span>
+          <span class="text-[#849495] text-[9px] uppercase">${h.type}</span>
+        </div>
+        <div class="flex gap-2">
+          <button class="history-btn" data-idx="${i}" data-action="load">LOAD</button>
+          <button class="history-btn remove" data-idx="${i}" data-action="remove">REMOVE</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    historyList.querySelectorAll('.history-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const idx = +e.target.dataset.idx;
+        const action = e.target.dataset.action;
+        if (action === 'load') {
+          const entry = history[idx];
+          const msg = entry
+            ? `Feature requires backend. Run: python main.py --brain ${entry.name}`
+            : 'Feature requires backend. Run: python main.py --brain [path]';
+          cliToast.querySelector('pre').textContent = msg;
+          cliToast.classList.add('show');
+        } else if (action === 'remove') {
+          history.splice(idx, 1);
+          localStorage.setItem('galaxy_history', JSON.stringify(history.slice(0, 10)));
+          renderHistory();
+        }
+      });
+    });
+  }
+
+  renderHistory();
+
+  // --- Projects ---
+  const newProjectModal = document.getElementById('new-project-modal');
+  const addProjectModal = document.getElementById('add-project-modal');
+  const addProjectList = document.getElementById('add-project-list');
+
+  function updateActiveProjectName() {
+    const name = localStorage.getItem('galaxy_current_project') || 'DEFAULT';
+    const el = document.getElementById('active-project-name');
+    if (el) el.textContent = name;
+  }
+  updateActiveProjectName();
+
+  window.closeNewProjectModal = function() {
+    newProjectModal.style.display = 'none';
+  };
+  window.createNewProject = function() {
+    const name = document.getElementById('new-project-name').value.trim();
+    if (!name) { alert('PROJECT NAME REQUIRED'); return; }
+    const projects = JSON.parse(localStorage.getItem('galaxy_projects') || '[]');
+    projects.unshift({ id: name, name: name, created: new Date().toISOString() });
+    localStorage.setItem('galaxy_projects', JSON.stringify(projects));
+    localStorage.setItem('galaxy_current_project', name);
+    alert(`Project "${name}" created! Restart app to switch.`);
+    closeNewProjectModal();
+    renderProjects();
+    updateActiveProjectName();
+  };
+
+  document.getElementById('btn-new-project').addEventListener('click', () => {
+    newProjectModal.style.display = 'flex';
+  });
+
+  window.closeAddProjectModal = function() {
+    addProjectModal.style.display = 'none';
+  };
+  window.openAddProjectModal = function() {
+    const selected = files.filter(f => f.selected && f.size <= MAX_SIZE);
+    if (!selected.length) { alert('NO FILES SELECTED'); return; }
+    const projects = JSON.parse(localStorage.getItem('galaxy_projects') || '[]');
+    if (!projects.length) {
+      alert('NO PROJECTS FOUND. CREATE ONE FIRST.');
+      return;
+    }
+    addProjectList.innerHTML = projects.map(p => `
+      <button onclick="selectProjectForAdd('${p.id.replace(/'/g, "\\'")}')" class="w-full text-left px-3 py-2 border border-[#3a494b] font-mono text-xs text-[#e2e2e2] hover:border-[#00f3ff] hover:bg-[#00f3ff]/10 transition-all">
+        ${p.name}
+      </button>
+    `).join('');
+    addProjectModal.style.display = 'flex';
+  };
+  window.selectProjectForAdd = function(projectId) {
+    const selected = files.filter(f => f.selected && f.size <= MAX_SIZE);
+    const allProjects = JSON.parse(localStorage.getItem('galaxy_projects') || '[]');
+    const project = allProjects.find(p => p.id === projectId);
+    if (!project) return;
+    const key = `galaxy_project_files_${projectId}`;
+    const existing = JSON.parse(localStorage.getItem(key) || '[]');
+    const newEntries = selected.map(f => ({ name: f.name, size: f.size, date: new Date().toISOString() }));
+    const merged = newEntries.concat(existing);
+    localStorage.setItem(key, JSON.stringify(merged));
+    alert(`Added ${selected.length} file(s) to project "${project.name}".`);
+    closeAddProjectModal();
+  };
+
+  document.getElementById('btn-add-project').addEventListener('click', () => {
+    openAddProjectModal();
+  });
+
+  window.switchProject = function() {
+    const projects = JSON.parse(localStorage.getItem('galaxy_projects') || '[]');
+    if (!projects.length) {
+      alert('NO PROJECTS FOUND');
+      return;
+    }
+    const list = projects.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
+    const choice = prompt(`SELECT PROJECT:\n${list}\n\nEnter number or name:`);
+    if (!choice) return;
+    let found = projects.find((p, i) => String(i + 1) === choice || p.name.toLowerCase() === choice.toLowerCase());
+    if (found) {
+      localStorage.setItem('galaxy_current_project', found.id);
+      updateActiveProjectName();
+      alert(`Switched to project "${found.name}"`);
+    } else {
+      alert('PROJECT NOT FOUND');
+    }
+  };
+
+  window.renderProjects = function() {
+    updateActiveProjectName();
+  };
+})();
+</script>
+</body>
+</html>

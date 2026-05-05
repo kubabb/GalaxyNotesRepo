@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KONFIGURACJA SYSTEMU – Galaxy-Pilot</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000000; --surface: #131313; --surface-container: #1f1f1f;
+    --on-surface: #e2e2e2; --on-surface-variant: #b9cacb;
+    --primary: #e3fdff; --primary-container: #00f3ff; --primary-dim: #00dce6;
+    --secondary: #ffabf3; --secondary-container: #fe00fe;
+    --tertiary: #e8ffda; --tertiary-container: #36fd0f;
+    --outline: #849495; --outline-variant: #3a494b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background: var(--bg); color: var(--on-surface); font-family: 'Inter', sans-serif; min-height: 100vh; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  .font-headline { font-family: 'Space Grotesk', sans-serif; }
+  .scanlines { position: fixed; inset: 0; z-index: 9999; pointer-events: none; mix-blend-mode: overlay; background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.05)); background-size: 100% 4px; }
+  .tech-border { position: relative; }
+  .tech-border::before, .tech-border::after { content: ''; position: absolute; width: 10px; height: 10px; border: 1px solid var(--primary-dim); }
+  .tech-border::before { top: 0; left: 0; border-right: none; border-bottom: none; }
+  .tech-border::after { bottom: 0; right: 0; border-left: none; border-top: none; }
+  .glitch-hover:hover { transform: translateX(2px); background-color: rgba(0, 243, 255, 0.15); }
+
+  #sidebar { position: fixed; left: 0; top: 0; height: 100%; width: 56px; z-index: 100; background: rgba(0,0,0,0.92); backdrop-filter: blur(20px); border-right: 1px solid rgba(0,243,255,0.2); display: flex; flex-direction: column; padding-top: 16px; transition: width 0.3s ease; overflow: hidden; }
+  #sidebar:hover { width: 200px; }
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: rgba(0,243,255,0.4); font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; text-decoration: none; border-left: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
+  .nav-item:hover, .nav-item.active { color: #00f3ff; background: rgba(0,243,255,0.1); border-left-color: #00f3ff; }
+  .nav-item .nav-label { opacity: 0; transition: opacity 0.2s; }
+  #sidebar:hover .nav-label { opacity: 1; }
+
+  #topbar { position: fixed; top: 0; left: 56px; right: 0; height: 44px; z-index: 90; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,243,255,0.15); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+
+  .terminal-input {
+    background: rgba(0,10,20,0.8);
+    border: 1px solid var(--outline-variant);
+    color: var(--on-surface);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 10px 12px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .terminal-input:focus { border-color: var(--primary-container); box-shadow: 0 0 8px rgba(0,243,255,0.2); }
+  .toggle-switch { appearance: none; width: 36px; height: 18px; background: #1f1f1f; border: 1px solid var(--outline-variant); position: relative; cursor: pointer; outline: none; }
+  .toggle-switch:checked { background: rgba(0,243,255,0.2); border-color: var(--primary-container); }
+  .toggle-switch::after { content: ''; position: absolute; top: 1px; left: 1px; width: 14px; height: 14px; background: var(--outline); transition: transform 0.2s; }
+  .toggle-switch:checked::after { transform: translateX(18px); background: var(--primary-container); }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+
+<nav id="sidebar">
+  <a href="../index.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">home</span><span class="nav-label">ONBOARDING</span></a>
+  <a href="dashboard.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">dashboard</span><span class="nav-label">PANEL</span></a>
+  <a href="tactical.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">flight</span><span class="nav-label">WIZJER</span></a>
+  <a href="log.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">terminal</span><span class="nav-label">DZIENNIK</span></a>
+  <a href="settings.html" class="nav-item active"><span class="material-symbols-outlined" style="font-size:20px;">settings</span><span class="nav-label">SYSTEM</span></a>
+</nav>
+
+<div id="topbar">
+  <div class="font-mono text-xs text-[#00f3ff] tracking-widest uppercase">Konfiguracja // System Settings</div>
+  <div class="font-mono text-[10px] text-[#849495]">LOCAL STORAGE</div>
+</div>
+
+<main class="ml-14 pt-14 p-6 min-h-screen">
+  <div class="max-w-4xl mx-auto">
+    <div class="mb-8">
+      <div class="inline-block px-3 py-1 mb-2 border border-[#00f3ff]/30 text-[#00f3ff] font-mono text-[10px] tracking-[0.2em] uppercase">/// CONFIG.SYS</div>
+      <h1 class="font-headline text-3xl text-[#e2e2e2] mb-2">KONFIGURACJA SYSTEMU</h1>
+      <p class="font-mono text-xs text-[#849495]">Ustawienia lokalne przeglądarki. Dane konfiguracyjne i klucze API pozostają w backendzie.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="border border-[#3a494b] bg-[#131313]/90 p-5 tech-border">
+        <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">Wizualizacja 3D</div>
+        <label class="block font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">FOG_DENSITY</label>
+        <input type="range" id="fog" min="0" max="100" value="25" class="w-full mb-4 accent-[#00f3ff]">
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-xs text-[#b9cacb]">SHOW_EDGES</span>
+          <input type="checkbox" id="show-edges" class="toggle-switch" checked>
+        </div>
+      </div>
+
+      <div class="border border-[#3a494b] bg-[#131313]/90 p-5 tech-border">
+        <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">Czułość myszy (Orbita)</div>
+        <label class="block font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">MOUSE_SENSITIVITY</label>
+        <input type="range" id="mouse-sens" min="0.0003" max="0.004" step="0.0001" value="0.0018" class="w-full mb-2 accent-[#00f3ff]">
+        <div class="flex justify-between font-mono text-[10px] text-[#849495]">
+          <span>0.0003</span>
+          <span id="mouse-sens-val" class="text-[#00f3ff]">0.0018</span>
+          <span>0.004</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="mt-8 flex gap-4">
+      <button onclick="saveSettings()" class="px-8 py-3 border border-[#00f3ff] text-[#00f3ff] font-mono text-xs uppercase tracking-widest glitch-hover transition-all">
+        [ ZAPISZ KONFIGURACJĘ ]
+      </button>
+      <button onclick="resetSettings()" class="px-8 py-3 border border-[#fe00fe]/40 text-[#fe00fe] font-mono text-xs uppercase tracking-widest glitch-hover transition-all">
+        [ RESET ]
+      </button>
+    </div>
+
+    <div id="save-msg" class="mt-4 font-mono text-xs text-[#36fd0f] hidden">✓ Konfiguracja zapisana w localStorage.</div>
+
+    <div class="panel p-5 tech-border mt-6">
+      <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">/// SUBSCRIPTION</div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- FREE -->
+        <div class="border border-[#36fd0f]/40 bg-[#36fd0f]/5 p-4">
+          <div class="font-headline text-lg text-[#36fd0f] mb-2">FREE</div>
+          <div class="font-headline text-2xl text-[#e2e2e2] mb-3">$0<span class="text-sm">/mo</span></div>
+          <ul class="font-mono text-[10px] text-[#b9cacb] space-y-1 mb-4">
+            <li>100 notes</li><li>1 project</li><li>Basic formats (md, txt)</li><li>Local ML</li>
+          </ul>
+          <button class="w-full py-2 border border-[#36fd0f]/60 text-[#36fd0f] font-mono text-[10px] uppercase opacity-50 cursor-not-allowed">CURRENT</button>
+        </div>
+        <!-- STANDARD -->
+        <div class="border border-[#00f3ff]/40 bg-[#00f3ff]/5 p-4">
+          <div class="font-headline text-lg text-[#00f3ff] mb-2">STANDARD</div>
+          <div class="font-headline text-2xl text-[#e2e2e2] mb-3">$9.99<span class="text-sm">/mo</span></div>
+          <ul class="font-mono text-[10px] text-[#b9cacb] space-y-1 mb-4">
+            <li>1,000 notes</li><li>5 projects</li><li>All formats</li><li>Priority support</li>
+          </ul>
+          <button class="w-full py-2 border border-[#00f3ff] text-[#00f3ff] font-mono text-[10px] uppercase hover:bg-[#00f3ff]/10 transition-all">UPGRADE</button>
+        </div>
+        <!-- PREMIUM -->
+        <div class="border border-[#fe00fe]/40 bg-[#fe00fe]/5 p-4">
+          <div class="font-headline text-lg text-[#fe00fe] mb-2">PREMIUM</div>
+          <div class="font-headline text-2xl text-[#e2e2e2] mb-3">$19.99<span class="text-sm">/mo</span></div>
+          <ul class="font-mono text-[10px] text-[#b9cacb] space-y-1 mb-4">
+            <li>Unlimited notes</li><li>Unlimited projects</li><li>Custom themes</li><li>Early access</li>
+          </ul>
+          <button class="w-full py-2 border border-[#fe00fe] text-[#fe00fe] font-mono text-[10px] uppercase hover:bg-[#fe00fe]/10 transition-all">UPGRADE</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel p-5 tech-border mt-6">
+      <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">/// APPEARANCE</div>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-xs text-[#b9cacb]">Scanlines</span>
+          <input type="checkbox" id="toggle-scanlines" checked class="accent-[#00f3ff]">
+        </div>
+        <div>
+          <span class="font-mono text-xs text-[#b9cacb]">Bloom Intensity</span>
+          <input type="range" id="bloom-slider" min="0" max="100" value="50" class="w-full accent-[#00f3ff]">
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-xs text-[#b9cacb]">Theme</span>
+          <select id="theme-select" class="bg-[#1f1f1f] border border-[#3a494b] text-[#e2e2e2] font-mono text-xs px-2 py-1">
+            <option value="cyberpunk">Cyberpunk</option>
+            <option value="minimal">Minimal</option>
+            <option value="high-contrast">High Contrast</option>
+          </select>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-xs text-[#b9cacb]">Font Size</span>
+          <select id="font-size-select" class="bg-[#1f1f1f] border border-[#3a494b] text-[#e2e2e2] font-mono text-xs px-2 py-1">
+            <option value="small">Small</option>
+            <option value="normal" selected>Normal</option>
+            <option value="large">Large</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel p-5 tech-border mt-6">
+      <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">/// DATA</div>
+      <div class="grid grid-cols-2 gap-3">
+        <button class="py-2 border border-[#00f3ff]/40 text-[#00f3ff] font-mono text-[10px] uppercase hover:bg-[#00f3ff]/10">EXPORT PROJECT</button>
+        <button class="py-2 border border-[#00f3ff]/40 text-[#00f3ff] font-mono text-[10px] uppercase hover:bg-[#00f3ff]/10">IMPORT PROJECT</button>
+        <button class="py-2 border border-[#ff3333]/40 text-[#ff3333] font-mono text-[10px] uppercase hover:bg-[#ff3333]/10">CLEAR CACHE</button>
+        <button class="py-2 border border-[#849495]/40 text-[#849495] font-mono text-[10px] uppercase hover:bg-white/5">RESET SETTINGS</button>
+      </div>
+    </div>
+
+    <div class="panel p-5 tech-border mt-6">
+      <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">/// ABOUT</div>
+      <div class="font-mono text-xs text-[#b9cacb] space-y-1">
+        <div>Version: <span class="text-[#e2e2e2]">v5.0</span></div>
+        <div>Author: <span class="text-[#e2e2e2]">Galaxy-Pilot Team</span></div>
+        <div>GitHub: <a href="#" class="text-[#00f3ff] hover:underline">github.com/kubabb/GalaxyNotesRepo</a></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+function loadSettings() {
+  const s = JSON.parse(localStorage.getItem('gp_settings') || '{}');
+  if(s.fogDensity) document.getElementById('fog').value = s.fogDensity;
+  if(s.showEdges !== undefined) document.getElementById('show-edges').checked = s.showEdges;
+
+  const sens = localStorage.getItem('galaxy_sens');
+  const sensInput = document.getElementById('mouse-sens');
+  if(sens !== null) {
+    sensInput.value = parseFloat(sens);
+  }
+  document.getElementById('mouse-sens-val').textContent = parseFloat(sensInput.value).toFixed(4);
+}
+
+document.getElementById('mouse-sens').addEventListener('input', function() {
+  const val = parseFloat(this.value);
+  document.getElementById('mouse-sens-val').textContent = val.toFixed(4);
+  localStorage.setItem('galaxy_sens', val);
+});
+function saveSettings() {
+  const s = {
+    fogDensity: document.getElementById('fog').value,
+    showEdges: document.getElementById('show-edges').checked,
+  };
+  localStorage.setItem('gp_settings', JSON.stringify(s));
+  localStorage.setItem('galaxy_sens', document.getElementById('mouse-sens').value);
+  const msg = document.getElementById('save-msg');
+  msg.classList.remove('hidden');
+  setTimeout(() => msg.classList.add('hidden'), 3000);
+}
+function resetSettings() {
+  localStorage.removeItem('gp_settings');
+  localStorage.removeItem('galaxy_sens');
+  document.getElementById('fog').value = 25;
+  document.getElementById('show-edges').checked = true;
+  document.getElementById('mouse-sens').value = 0.0018;
+  document.getElementById('mouse-sens-val').textContent = '0.0018';
+}
+loadSettings();
+</script>
+</body>
+</html>

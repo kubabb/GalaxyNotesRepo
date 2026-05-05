@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DZIENNIK LOTU – Galaxy-Pilot</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000000; --surface: #131313; --surface-container: #1f1f1f;
+    --on-surface: #e2e2e2; --on-surface-variant: #b9cacb;
+    --primary: #e3fdff; --primary-container: #00f3ff; --primary-dim: #00dce6;
+    --secondary: #ffabf3; --secondary-container: #fe00fe;
+    --tertiary: #e8ffda; --tertiary-container: #36fd0f;
+    --outline: #849495; --outline-variant: #3a494b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background: var(--bg); color: var(--on-surface); font-family: 'Inter', sans-serif; min-height: 100vh; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  .font-headline { font-family: 'Space Grotesk', sans-serif; }
+  .scanlines { position: fixed; inset: 0; z-index: 9999; pointer-events: none; mix-blend-mode: overlay; background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.05)); background-size: 100% 4px; }
+  .tech-border { position: relative; }
+  .tech-border::before, .tech-border::after { content: ''; position: absolute; width: 10px; height: 10px; border: 1px solid var(--primary-dim); }
+  .tech-border::before { top: 0; left: 0; border-right: none; border-bottom: none; }
+  .tech-border::after { bottom: 0; right: 0; border-left: none; border-top: none; }
+  .glitch-hover:hover { transform: translateX(2px); background-color: rgba(0, 243, 255, 0.15); }
+
+  #sidebar { position: fixed; left: 0; top: 0; height: 100%; width: 56px; z-index: 100; background: rgba(0,0,0,0.92); backdrop-filter: blur(20px); border-right: 1px solid rgba(0,243,255,0.2); display: flex; flex-direction: column; padding-top: 16px; transition: width 0.3s ease; overflow: hidden; }
+  #sidebar:hover { width: 200px; }
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: rgba(0,243,255,0.4); font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; text-decoration: none; border-left: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
+  .nav-item:hover, .nav-item.active { color: #00f3ff; background: rgba(0,243,255,0.1); border-left-color: #00f3ff; }
+  .nav-item .nav-label { opacity: 0; transition: opacity 0.2s; }
+  #sidebar:hover .nav-label { opacity: 1; }
+
+  #topbar { position: fixed; top: 0; left: 56px; right: 0; height: 44px; z-index: 90; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,243,255,0.15); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+
+  .log-row { border-left: 2px solid transparent; transition: all 0.2s; }
+  .log-row:hover { background: rgba(0,243,255,0.05); border-left-color: rgba(0,243,255,0.5); }
+  .log-row.active { background: rgba(0,243,255,0.1); border-left-color: #00f3ff; }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+
+<nav id="sidebar">
+  <a href="../index.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">home</span><span class="nav-label">ONBOARDING</span></a>
+  <a href="dashboard.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">dashboard</span><span class="nav-label">PANEL</span></a>
+  <a href="tactical.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">flight</span><span class="nav-label">WIZJER</span></a>
+  <a href="log.html" class="nav-item active"><span class="material-symbols-outlined" style="font-size:20px;">terminal</span><span class="nav-label">DZIENNIK</span></a>
+  <a href="settings.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">settings</span><span class="nav-label">SYSTEM</span></a>
+</nav>
+
+<div id="topbar">
+  <div class="font-mono text-xs text-[#00f3ff] tracking-widest uppercase">Dziennik Lotu // Flight Log</div>
+  <div class="font-mono text-[10px] text-[#849495]">METADATA STREAM</div>
+</div>
+
+<main class="ml-14 pt-14 p-6 min-h-screen">
+  <div class="max-w-6xl mx-auto">
+    <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <div class="inline-block px-3 py-1 mb-2 border border-[#00f3ff]/30 text-[#00f3ff] font-mono text-[10px] tracking-[0.2em] uppercase">/// LOG.INDEX</div>
+        <h1 class="font-headline text-3xl text-[#e2e2e2]">DZIENNIK LOTU</h1>
+      </div>
+      <div class="flex items-center gap-2 bg-[#131313] border border-[#3a494b] px-3 py-2">
+        <span class="material-symbols-outlined text-[#849495] text-sm">search</span>
+        <input type="text" id="search" placeholder="FILTRUJ SEKTORY..." class="bg-transparent border-none outline-none font-mono text-xs text-[#e2e2e2] w-48 uppercase">
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-1 border border-[#3a494b] bg-[#131313]/90 max-h-[70vh] overflow-y-auto" id="log-list">
+        <div class="p-3 border-b border-[#3a494b] font-mono text-[10px] text-[#849495] uppercase tracking-widest">Sektory (<span id="count">0</span>)</div>
+        <!-- rows injected by JS -->
+      </div>
+
+      <div class="lg:col-span-2 border border-[#3a494b] bg-[#131313]/90 p-5 tech-border min-h-[50vh]">
+        <div id="detail-empty" class="h-full flex items-center justify-center text-[#849495] font-mono text-xs">
+          Wybierz sektor z listy, aby wyświetlić dane taktyczne.
+        </div>
+        <div id="detail-content" class="hidden">
+          <div class="flex items-center justify-between mb-4 border-b border-[#3a494b]/50 pb-3">
+            <h2 class="font-headline text-xl text-[#00f3ff]" id="d-title">SEKTOR</h2>
+            <span class="font-mono text-[10px] text-[#849495]" id="d-class">KLASA: -</span>
+          </div>
+          <div class="space-y-3 font-mono text-xs text-[#b9cacb]">
+            <div><span class="text-[#00f3ff]">ENERGIA:</span> <span id="d-energy">-</span></div>
+            <div><span class="text-[#00f3ff]">PLIK:</span> <span id="d-file">-</span></div>
+            <div><span class="text-[#00f3ff]">FORMAT:</span> <span id="d-format">-</span></div>
+            <div><span class="text-[#00f3ff]">BRIEF:</span> <span id="d-brief">-</span></div>
+            <div><span class="text-[#00f3ff]">SUGGESTED LINKS:</span> <span id="d-links">-</span></div>
+            <div class="mt-4 p-3 bg-[#000a14] border border-[#3a494b]">
+              <div class="flex items-center justify-between mb-2">
+                <div class="font-mono text-[10px] text-[#849495] uppercase tracking-widest">=== Treść notatki ===</div>
+                <button id="d-expand" class="hidden font-mono text-[10px] text-[#00f3ff] border border-[#00f3ff]/40 px-2 py-0.5 uppercase hover:bg-[#00f3ff]/10">[ EXPAND ]</button>
+              </div>
+              <div id="d-content" class="whitespace-pre-wrap text-[#b9cacb] text-xs leading-relaxed max-h-64 overflow-y-auto"></div>
+            </div>
+            <a id="d-open" href="#" target="_blank" class="hidden inline-block mt-1 px-3 py-1 border border-[#00f3ff]/40 text-[#00f3ff] font-mono text-[10px] uppercase hover:bg-[#00f3ff]/10">[ OPEN FILE ]</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+let allData = {};
+
+function getFormatIcon(filename) {
+  if (!filename) return '📁';
+  const ext = filename.split('.').pop().toLowerCase();
+  const map = {
+    md: '📝', pdf: '📄', docx: '📃', txt: '📋',
+    py: '🐍', js: '📜', json: '🔧', html: '🌐'
+  };
+  return map[ext] || '📁';
+}
+
+(async () => {
+  try {
+    const res = await fetch('../data/output/metadata.json');
+    allData = await res.json();
+    renderList(Object.keys(allData));
+  } catch(e) {
+    document.getElementById('log-list').innerHTML += '<div class="p-3 text-[#ffabf3] font-mono text-xs">Błąd ładowania danych.</div>';
+  }
+})();
+
+function renderList(keys) {
+  const container = document.getElementById('log-list');
+  container.innerHTML = '<div class="p-3 border-b border-[#3a494b] font-mono text-[10px] text-[#849495] uppercase tracking-widest">Sektory (<span id="count">' + keys.length + '</span>)</div>';
+  keys.forEach(key => {
+    const meta = allData[key] || {};
+    const div = document.createElement('div');
+    div.className = 'log-row p-3 cursor-pointer border-b border-[#3a494b]/30';
+    div.innerHTML = `
+      <div class="flex items-center justify-between">
+        <span class="mr-2">${getFormatIcon(meta.file || key)}</span><span class="font-mono text-xs text-[#e2e2e2]">${key}</span>
+        <span class="font-mono text-[10px] text-[#849495]">${meta.star_class||'?'}</span>
+      </div>
+      <div class="font-mono text-[10px] text-[#849495] mt-1 truncate">${(meta.brief||meta.tooltip||'').substring(0, 60)}...</div>
+    `;
+    div.onclick = () => showDetail(key, div);
+    container.appendChild(div);
+  });
+  document.getElementById('count').textContent = keys.length;
+}
+
+function showDetail(key, el) {
+  document.querySelectorAll('.log-row').forEach(r => r.classList.remove('active'));
+  el.classList.add('active');
+  const meta = allData[key] || {};
+  document.getElementById('detail-empty').classList.add('hidden');
+  document.getElementById('detail-content').classList.remove('hidden');
+  document.getElementById('d-title').textContent = key.toUpperCase();
+  document.getElementById('d-class').textContent = 'KLASA: ' + (meta.star_class || 'Nieznana');
+  document.getElementById('d-energy').textContent = meta.energy_level || 'Standardowa';
+  document.getElementById('d-file').textContent = meta.file || key;
+
+  const fileName = meta.file || key;
+  const ext = fileName.split('.').pop().toLowerCase();
+  document.getElementById('d-format').textContent = ext.toUpperCase();
+
+  document.getElementById('d-brief').textContent = meta.brief || meta.tooltip || 'Brak briefu.';
+
+  const links = meta.suggested_links || [];
+  document.getElementById('d-links').textContent = links.length ? links.join(', ') : 'Brak';
+
+  const contentEl = document.getElementById('d-content');
+  const expandBtn = document.getElementById('d-expand');
+  const fullText = meta.content || meta.tooltip || 'Brak treści.';
+  contentEl.textContent = fullText;
+  expandBtn.classList.add('hidden');
+
+  if (fullText.length > 3000) {
+    expandBtn.classList.remove('hidden');
+    let expanded = false;
+    const truncated = fullText.substring(0, 3000) + '...';
+    contentEl.textContent = truncated;
+    expandBtn.textContent = '[ EXPAND ]';
+
+    expandBtn.onclick = () => {
+      expanded = !expanded;
+      contentEl.textContent = expanded ? fullText : truncated;
+      expandBtn.textContent = expanded ? '[ COLLAPSE ]' : '[ EXPAND ]';
+    };
+  }
+
+  const openLink = document.getElementById('d-open');
+  const filePath = meta.file || '';
+  if (filePath && (/^[a-zA-Z]:[\\/]/.test(filePath) || filePath.startsWith('/'))) {
+    openLink.href = 'file:///' + filePath.replace(/\\/g, '/');
+    openLink.classList.remove('hidden');
+  } else {
+    openLink.classList.add('hidden');
+  }
+}
+
+document.getElementById('search').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  const keys = Object.keys(allData).filter(k => k.toLowerCase().includes(q));
+  renderList(keys);
+});
+</script>
+</body>
+</html>
