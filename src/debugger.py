@@ -140,7 +140,46 @@ def full_qa_report():
     print(f"Walidacja JSON: {'PASS' if json_ok else 'FAIL'}")
     print(f"Kompilacja Python: {'PASS' if py_ok else 'FAIL'}")
     print("="*60)
-    return leaks_ok and json_ok and py_ok
+
+    # 4. Z-Variance Test
+    import statistics
+    galaxy_path = PROJECT_ROOT / "data" / "output" / "galaxy_data.json"
+    if galaxy_path.exists():
+        with open(galaxy_path, "r", encoding="utf-8") as f:
+            galaxy_data = json.load(f)
+        z_coords = [node["z"] for node in galaxy_data.get("nodes", {}).values()]
+        if z_coords:
+            z_std = statistics.stdev(z_coords)
+            print(f"[DEBUGGER] Z-Variance: std(z) = {z_std:.2f}")
+            if z_std > 200:
+                print("[DEBUGGER] PASS: Galaktyka ma wyraźną głębokość 3D.")
+            else:
+                print("[DEBUGGER] FAIL: Galaktyka zbyt płaska (std(z) <= 200).")
+
+    # 5. Link Integrity Test
+    meta_path = PROJECT_ROOT / "data" / "output" / "metadata.json"
+    if meta_path.exists() and galaxy_path.exists():
+        with open(meta_path, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+        nodes = galaxy_data.get("nodes", {})
+        missing = []
+        for node_id, meta in metadata.items():
+            for link in meta.get("suggested_links", []):
+                if link not in nodes and link not in metadata:
+                    missing.append((node_id, link))
+        if missing:
+            print(f"[DEBUGGER] WARNING: {len(missing)} virtual links bez odpowiedników.")
+        else:
+            print("[DEBUGGER] PASS: Wszystkie virtual links mają cele.")
+
+    # 6. Upload Sanity Test
+    inbox_path = PROJECT_ROOT / "data" / "inbox"
+    if inbox_path.exists():
+        large_files = [f for f in inbox_path.rglob("*") if f.is_file() and f.stat().st_size > 50*1024*1024]
+        if large_files:
+            print(f"[DEBUGGER] WARNING: {len(large_files)} plików w inbox > 50MB.")
+        else:
+            print("[DEBUGGER] PASS: Brak przepełnionych plików w inbox.")
 
     return leaks_ok and json_ok and py_ok
 
