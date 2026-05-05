@@ -88,11 +88,17 @@
           <div class="space-y-3 font-mono text-xs text-[#b9cacb]">
             <div><span class="text-[#00f3ff]">ENERGIA:</span> <span id="d-energy">-</span></div>
             <div><span class="text-[#00f3ff]">PLIK:</span> <span id="d-file">-</span></div>
+            <div><span class="text-[#00f3ff]">FORMAT:</span> <span id="d-format">-</span></div>
             <div><span class="text-[#00f3ff]">BRIEF:</span> <span id="d-brief">-</span></div>
-            <div class="mt-4 p-3 bg-[#000a14] border border-[#3a494b] max-h-64 overflow-y-auto">
-              <div class="font-mono text-[10px] text-[#849495] mb-2 uppercase tracking-widest">=== Treść notatki ===</div>
-              <div id="d-content" class="whitespace-pre-wrap text-[#b9cacb] text-xs leading-relaxed"></div>
+            <div><span class="text-[#00f3ff]">SUGGESTED LINKS:</span> <span id="d-links">-</span></div>
+            <div class="mt-4 p-3 bg-[#000a14] border border-[#3a494b]">
+              <div class="flex items-center justify-between mb-2">
+                <div class="font-mono text-[10px] text-[#849495] uppercase tracking-widest">=== Treść notatki ===</div>
+                <button id="d-expand" class="hidden font-mono text-[10px] text-[#00f3ff] border border-[#00f3ff]/40 px-2 py-0.5 uppercase hover:bg-[#00f3ff]/10">[ EXPAND ]</button>
+              </div>
+              <div id="d-content" class="whitespace-pre-wrap text-[#b9cacb] text-xs leading-relaxed max-h-64 overflow-y-auto"></div>
             </div>
+            <a id="d-open" href="#" target="_blank" class="hidden inline-block mt-1 px-3 py-1 border border-[#00f3ff]/40 text-[#00f3ff] font-mono text-[10px] uppercase hover:bg-[#00f3ff]/10">[ OPEN FILE ]</a>
           </div>
         </div>
       </div>
@@ -102,6 +108,16 @@
 
 <script>
 let allData = {};
+
+function getFormatIcon(filename) {
+  if (!filename) return '📁';
+  const ext = filename.split('.').pop().toLowerCase();
+  const map = {
+    md: '📝', pdf: '📄', docx: '📃', txt: '📋',
+    py: '🐍', js: '📜', json: '🔧', html: '🌐'
+  };
+  return map[ext] || '📁';
+}
 
 (async () => {
   try {
@@ -122,7 +138,7 @@ function renderList(keys) {
     div.className = 'log-row p-3 cursor-pointer border-b border-[#3a494b]/30';
     div.innerHTML = `
       <div class="flex items-center justify-between">
-        <span class="font-mono text-xs text-[#e2e2e2]">${key}</span>
+        <span class="mr-2">${getFormatIcon(meta.file || key)}</span><span class="font-mono text-xs text-[#e2e2e2]">${key}</span>
         <span class="font-mono text-[10px] text-[#849495]">${meta.star_class||'?'}</span>
       </div>
       <div class="font-mono text-[10px] text-[#849495] mt-1 truncate">${(meta.brief||meta.tooltip||'').substring(0, 60)}...</div>
@@ -143,8 +159,44 @@ function showDetail(key, el) {
   document.getElementById('d-class').textContent = 'KLASA: ' + (meta.star_class || 'Nieznana');
   document.getElementById('d-energy').textContent = meta.energy_level || 'Standardowa';
   document.getElementById('d-file').textContent = meta.file || key;
+
+  const fileName = meta.file || key;
+  const ext = fileName.split('.').pop().toLowerCase();
+  document.getElementById('d-format').textContent = ext.toUpperCase();
+
   document.getElementById('d-brief').textContent = meta.brief || meta.tooltip || 'Brak briefu.';
-  document.getElementById('d-content').textContent = (meta.content || meta.tooltip || 'Brak treści.').substring(0, 2000);
+
+  const links = meta.suggested_links || [];
+  document.getElementById('d-links').textContent = links.length ? links.join(', ') : 'Brak';
+
+  const contentEl = document.getElementById('d-content');
+  const expandBtn = document.getElementById('d-expand');
+  const fullText = meta.content || meta.tooltip || 'Brak treści.';
+  contentEl.textContent = fullText;
+  expandBtn.classList.add('hidden');
+
+  if (fullText.length > 3000) {
+    expandBtn.classList.remove('hidden');
+    let expanded = false;
+    const truncated = fullText.substring(0, 3000) + '...';
+    contentEl.textContent = truncated;
+    expandBtn.textContent = '[ EXPAND ]';
+
+    expandBtn.onclick = () => {
+      expanded = !expanded;
+      contentEl.textContent = expanded ? fullText : truncated;
+      expandBtn.textContent = expanded ? '[ COLLAPSE ]' : '[ EXPAND ]';
+    };
+  }
+
+  const openLink = document.getElementById('d-open');
+  const filePath = meta.file || '';
+  if (filePath && (/^[a-zA-Z]:[\\/]/.test(filePath) || filePath.startsWith('/'))) {
+    openLink.href = 'file:///' + filePath.replace(/\\/g, '/');
+    openLink.classList.remove('hidden');
+  } else {
+    openLink.classList.add('hidden');
+  }
 }
 
 document.getElementById('search').addEventListener('input', e => {

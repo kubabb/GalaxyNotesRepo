@@ -108,6 +108,17 @@
       </div>
 
       <div class="border border-[#3a494b] bg-[#131313]/90 p-5 tech-border">
+        <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">Czułość myszy (Orbita)</div>
+        <label class="block font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">MOUSE_SENSITIVITY</label>
+        <input type="range" id="mouse-sens" min="0.0003" max="0.004" step="0.0001" value="0.0018" class="w-full mb-2 accent-[#00f3ff]">
+        <div class="flex justify-between font-mono text-[10px] text-[#849495]">
+          <span>0.0003</span>
+          <span id="mouse-sens-val" class="text-[#00f3ff]">0.0018</span>
+          <span>0.004</span>
+        </div>
+      </div>
+
+      <div class="border border-[#3a494b] bg-[#131313]/90 p-5 tech-border">
         <div class="font-mono text-xs text-[#00f3ff] uppercase tracking-widest mb-4 border-b border-[#3a494b]/50 pb-2">Git & Deploy</div>
         <label class="block font-mono text-[10px] text-[#849495] uppercase tracking-widest mb-2">GITHUB_REPO</label>
         <input type="text" id="github-repo" class="terminal-input mb-3" placeholder="user/repo">
@@ -142,7 +153,20 @@ function loadSettings() {
   if(s.showEdges !== undefined) document.getElementById('show-edges').checked = s.showEdges;
   if(s.githubRepo) document.getElementById('github-repo').value = s.githubRepo;
   if(s.autoPush) document.getElementById('auto-push').checked = s.autoPush;
+
+  const sens = localStorage.getItem('galaxy_sens');
+  const sensInput = document.getElementById('mouse-sens');
+  if(sens !== null) {
+    sensInput.value = parseFloat(sens);
+  }
+  document.getElementById('mouse-sens-val').textContent = parseFloat(sensInput.value).toFixed(4);
 }
+
+document.getElementById('mouse-sens').addEventListener('input', function() {
+  const val = parseFloat(this.value);
+  document.getElementById('mouse-sens-val').textContent = val.toFixed(4);
+  localStorage.setItem('galaxy_sens', val);
+});
 function saveSettings() {
   const s = {
     vaultPath: document.getElementById('vault-path').value,
@@ -154,12 +178,14 @@ function saveSettings() {
     autoPush: document.getElementById('auto-push').checked,
   };
   localStorage.setItem('gp_settings', JSON.stringify(s));
+  localStorage.setItem('galaxy_sens', document.getElementById('mouse-sens').value);
   const msg = document.getElementById('save-msg');
   msg.classList.remove('hidden');
   setTimeout(() => msg.classList.add('hidden'), 3000);
 }
 function resetSettings() {
   localStorage.removeItem('gp_settings');
+  localStorage.removeItem('galaxy_sens');
   document.getElementById('vault-path').value = '';
   document.getElementById('model').value = 'google/gemma-4-26b-a4b-it:free';
   document.getElementById('api-enabled').checked = false;
@@ -167,6 +193,8 @@ function resetSettings() {
   document.getElementById('show-edges').checked = true;
   document.getElementById('github-repo').value = '';
   document.getElementById('auto-push').checked = false;
+  document.getElementById('mouse-sens').value = 0.0018;
+  document.getElementById('mouse-sens-val').textContent = '0.0018';
 }
 loadSettings();
 </script>

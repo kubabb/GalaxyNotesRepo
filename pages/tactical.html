@@ -237,12 +237,18 @@ const CFG = {
   rollSpeed: 0.035,
   yawSpeed: 0.08,
   pitchSpeed: 0.06,
-  mouseSensitivity: 0.0008,
-  mouseSensitivityHigh: 0.002,
-  mouseSensitivityLow: 0.0003,
+  mouseSensitivity: 0.0018,
+  mouseSensitivityHigh: 0.0035,
+  mouseSensitivityLow: 0.0008,
   navStopDist: 120,
   fogDensity: 0.00004,
 };
+
+// Load custom sensitivity from settings page
+const savedSens = localStorage.getItem('galaxy_sens');
+if(savedSens !== null) {
+  CFG.mouseSensitivity = parseFloat(savedSens);
+}
 
 // ─── STATE ───
 const S = {
