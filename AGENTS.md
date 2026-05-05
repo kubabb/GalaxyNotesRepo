@@ -134,6 +134,8 @@ Agents do **not** conflict because:
 | **DEBUGGER** | `src/debugger.py` | Run QA before push. Checks API leaks, JSON validity, Python compile. |
 | **GIT-PUSHER** | `src/git_manager.py` | Push to remote. Runs only with `--push` flag. |
 | **WATCHMAN** | `src/pipeline_guard.py` | Supervisor that wraps all agents in `try/except`. You don't call it directly. |
+| **BACKEND_DEV** | `src/*.py` | Python backend engineer. Creates ML engines, modifies pipeline, importers. |
+| **ELECTRON_DEV** | `electron/` | Desktop app engineer. Electron wrapper, IPC bridge, auto-updater. |
 
 ### Rules for OpenCode agent usage
 
