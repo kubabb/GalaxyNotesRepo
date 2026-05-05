@@ -1,6 +1,6 @@
 ---
 title: "AGENTS"
-date: 2026-05-05T11:53:26
+date: 2026-05-05T12:10:39
 type: SourceFile
 source: GalaxyNotes
 tags: #markdown #docs #design

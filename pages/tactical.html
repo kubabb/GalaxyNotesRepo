@@ -172,7 +172,7 @@
 <!-- Telemetry -->
 <div id="telemetry">
   W/S – Ciąg | A/D – Strafe | R/F – Wysokość | Q/E – Roll<br>
-  PPM – Lot (Pitch/Yaw) | LPM – Skanuj/Cel | Shift – Warp | C/ESC – Anuluj
+  PPM – Lot (Pitch/Yaw) | LPM – Leć do punktu/gwiazdy | Shift – Warp | TAB – Czułość | C/ESC – Anuluj
 </div>
 
 <!-- Loading -->
@@ -196,7 +196,9 @@ const CFG = {
   lineColor: 0x00aaff, lineOpacity: 0.2,
   speed: 4.0, maxSpeed: 10.0, warpSpeed: 25.0,
   rollSpeed: 0.025,
-  mouseSensitivity: 0.002,
+  mouseSensitivity: 0.0008,
+  mouseSensitivityHigh: 0.002,
+  mouseSensitivityLow: 0.0003,
   navStopDist: 60,
   fogDensity: 0.00008,
 };
@@ -216,6 +218,9 @@ const S = {
   acceleration: 0.15,
   drag: 0.94,
   maxVelocity: 12.0,
+  sensMode: 1, // 0=low, 1=normal, 2=high
+  clickTarget: null,
+  clickNavActive: false,
 };
 
 // ─── SCENE ───
@@ -279,7 +284,7 @@ scene.add(ship);
 // ─── CAMERA RIGID ATTACHMENT (6DOF) ───
 // Kamera jest dzieckiem statku – obraca się WRAZ z nim. 
 // NIE używamy lookAt, bo nadpisałby rotację lokalną.
-camera.position.set(0, 2.8, 15);
+camera.position.set(45, 12, 28);
 ship.add(camera);
 
 // ─── STARFIELD ───
@@ -524,6 +529,14 @@ window.addEventListener('keydown', e => {
   if(e.code==='ShiftLeft'||e.code==='ShiftRight') startWarp();
   if(e.code==='KeyC') { closeHud(); cancelNav(); }
   if(e.code==='Escape') { closeHud(); closeTerminal(); cancelNav(); }
+  if(e.code==='Tab') {
+    e.preventDefault();
+    S.sensMode = (S.sensMode + 1) % 3;
+    const labels = ['PRECYZYJNY','NORMALNY','SZYBKI'];
+    const vals = [CFG.mouseSensitivityLow, CFG.mouseSensitivity, CFG.mouseSensitivityHigh];
+    CFG.mouseSensitivity = vals[S.sensMode];
+    document.getElementById('flight-mode').textContent = `TRYB: MANUALNY | CZUŁOŚĆ: ${labels[S.sensMode]}`;
+  }
 });
 window.addEventListener('keyup', e => {
   S.keys[e.code]=false;
@@ -540,7 +553,9 @@ window.addEventListener('mousedown', e => {
   if(e.button===2) { S.mouseDownRight=true; canvas.style.cursor='none'; document.getElementById('flight-mode').textContent='TRYB: LOT (Pitch/Yaw)'; }
   if(e.button===0) {
     if(!e.target.closest('#hud-panel') && !e.target.closest('#terminal-modal') && !e.target.closest('#sidebar') && !e.target.closest('#topbar')) {
-      handleLeftClick();
+      const ndcX = (e.clientX / window.innerWidth) * 2 - 1;
+      const ndcY = -(e.clientY / window.innerHeight) * 2 + 1;
+      handleLeftClick(ndcX, ndcY);
     }
   }
 });
@@ -551,18 +566,36 @@ window.addEventListener('contextmenu', e => e.preventDefault());
 
 // ─── RAYCASTING ───
 const raycaster = new THREE.Raycaster();
-function handleLeftClick() {
-  raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+const clickPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+function handleLeftClick(ndcX, ndcY) {
+  raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
+
+  // First check if we clicked a star
   const hits = raycaster.intersectObjects(S.nodeMeshes);
   if(hits.length>0) {
     const node = S.nodes.find(n=>n.mesh===hits[0].object);
-    if(node) startNavToStar(node);
+    if(node) { startNavToStar(node); return; }
+  }
+
+  // If no star hit, fly toward the clicked point on the galaxy plane (Y=0)
+  const targetPoint = new THREE.Vector3();
+  raycaster.ray.intersectPlane(clickPlane, targetPoint);
+  if(targetPoint) {
+    startClickNav(targetPoint);
   }
 }
 
 // ─── NAVIGATION ───
 function startNavToStar(node) {
   S.navTarget = node;
+  S.clickTarget = null;
+  S.navActive = true;
+  document.getElementById('nav-indicator').classList.add('active');
+  updateSpeedHUD();
+}
+function startClickNav(targetPoint) {
+  S.clickTarget = targetPoint;
+  S.navTarget = null;
   S.navActive = true;
   document.getElementById('nav-indicator').classList.add('active');
   updateSpeedHUD();
@@ -570,33 +603,77 @@ function startNavToStar(node) {
 function cancelNav() {
   S.navActive = false;
   S.navTarget = null;
+  S.clickTarget = null;
   document.getElementById('nav-indicator').classList.remove('active');
   S.currentSpeed = CFG.speed;
   updateSpeedHUD();
 }
+function checkStarProximity() {
+  // Check if ship flew close to any star
+  for(const node of S.nodes) {
+    const d = ship.position.distanceTo(node.mesh.position);
+    if(d < CFG.navStopDist) {
+      cancelNav();
+      openHud(node);
+      return true;
+    }
+  }
+  return false;
+}
 function updateNav() {
-  if(!S.navActive || !S.navTarget) return;
-  const targetPos = S.navTarget.mesh.getWorldPosition(new THREE.Vector3());
-  const dir = targetPos.clone().sub(ship.position);
-  const dist = dir.length();
+  if(!S.navActive) return;
 
-  if(dist < CFG.navStopDist) {
-    cancelNav();
-    openHud(S.navTarget);
+  // If flying toward a star target
+  if(S.navTarget) {
+    const targetPos = S.navTarget.mesh.getWorldPosition(new THREE.Vector3());
+    const dir = targetPos.clone().sub(ship.position);
+    const dist = dir.length();
+
+    if(dist < CFG.navStopDist) {
+      cancelNav();
+      openHud(S.navTarget);
+      return;
+    }
+
+    dir.normalize();
+    const targetQ = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,-1), dir);
+    ship.quaternion.slerp(targetQ, 0.06);
+
+    const forward = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
+    let moveSpeed = dist > 300 ? CFG.warpSpeed * 0.4 : (dist > 120 ? CFG.maxSpeed : CFG.speed);
+    if(dist < 120) moveSpeed *= (dist / 120);
+    ship.position.add(forward.multiplyScalar(moveSpeed));
+    S.currentSpeed = moveSpeed;
+
+    // Check if we flew into any star along the way
+    checkStarProximity();
+    updateSpeedHUD();
     return;
   }
 
-  dir.normalize();
-  const targetQ = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,-1), dir);
-  ship.quaternion.slerp(targetQ, 0.06);
+  // If flying toward a click point
+  if(S.clickTarget) {
+    const dir = S.clickTarget.clone().sub(ship.position);
+    const dist = dir.length();
 
-  const forward = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
-  // Slow down as we approach target
-  let moveSpeed = dist > 300 ? CFG.warpSpeed * 0.4 : (dist > 120 ? CFG.maxSpeed : CFG.speed);
-  if(dist < 120) moveSpeed *= (dist / 120); // ease into target
-  ship.position.add(forward.multiplyScalar(moveSpeed));
-  S.currentSpeed = moveSpeed;
-  updateSpeedHUD();
+    if(dist < 20) {
+      cancelNav();
+      return;
+    }
+
+    dir.normalize();
+    const targetQ = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,-1), dir);
+    ship.quaternion.slerp(targetQ, 0.06);
+
+    const forward = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
+    let moveSpeed = dist > 400 ? CFG.warpSpeed * 0.5 : (dist > 150 ? CFG.maxSpeed : CFG.speed);
+    ship.position.add(forward.multiplyScalar(moveSpeed));
+    S.currentSpeed = moveSpeed;
+
+    // Check if we flew into any star along the way
+    if(checkStarProximity()) return;
+    updateSpeedHUD();
+  }
 }
 
 // ─── 6DOF FLIGHT PHYSICS (with inertia) ───
