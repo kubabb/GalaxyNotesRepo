@@ -16,7 +16,11 @@
 - [x] Krok 7: Zamiana fetch na GP.loadJSON w dashboard/tactical/log
 - [x] Krok 8: Upload plików przez IPC (dashboard)
 - [x] Krok 9: Test Electron start — PYTHON DZIAŁA
-- [ ] Krok 10: Build i package  
+- [x] Krok 10: Upload via IPC
+- [x] Krok 11: Build .exe via electron-builder (portable OK, NSIS wymaga uprawnień)
+- [x] Krok 12: Menu aplikacji (File, View, Help)
+- [ ] Krok 13: Tray icon
+- [ ] Krok 14: Final QA + push  
 
 ---
 

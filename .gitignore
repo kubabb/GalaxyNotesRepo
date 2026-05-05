@@ -36,6 +36,10 @@ Thumbs.db
 *.log
 logs/
 
+# Electron build artifacts
+electron/dist*
+electron/node_modules/
+
 # Galaxy output (generated data)
 data/output/
 data/inbox/

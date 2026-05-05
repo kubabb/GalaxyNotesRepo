@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -100,6 +100,41 @@ function createWindow() {
     }
   });
 }
+
+// ─── APPLICATION MENU ───
+const template = [
+  {
+    label: 'File',
+    submenu: [
+      { label: 'New Project', accelerator: 'Ctrl+N', click: () => { /* send to renderer */ } },
+      { label: 'Open Project', accelerator: 'Ctrl+O', click: () => { /* open dialog */ } },
+      { type: 'separator' },
+      { label: 'Exit', accelerator: 'Alt+F4', click: () => app.quit() }
+    ]
+  },
+  {
+    label: 'View',
+    submenu: [
+      { label: 'Dashboard', accelerator: 'F1', click: () => mainWindow.webContents.send('navigate', 'dashboard') },
+      { label: 'Cockpit', accelerator: 'F2', click: () => mainWindow.webContents.send('navigate', 'tactical') },
+      { label: 'Log', accelerator: 'F3', click: () => mainWindow.webContents.send('navigate', 'log') },
+      { label: 'Settings', accelerator: 'F4', click: () => mainWindow.webContents.send('navigate', 'settings') },
+      { type: 'separator' },
+      { label: 'Reload', accelerator: 'Ctrl+R', click: () => mainWindow.webContents.reload() },
+      { label: 'DevTools', accelerator: 'F12', click: () => mainWindow.webContents.openDevTools() }
+    ]
+  },
+  {
+    label: 'Help',
+    submenu: [
+      { label: 'About', click: () => { /* show about modal */ } },
+      { label: 'Documentation', click: () => require('electron').shell.openExternal('https://github.com/kubabb/GalaxyNotesRepo') }
+    ]
+  }
+];
+
+const menu = Menu.buildFromTemplate(template);
+Menu.setApplicationMenu(menu);
 
 // ─── IPC HANDLERS ───
 
