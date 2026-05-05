@@ -1,6 +1,6 @@
 ---
 title: "tactical"
-date: 2026-05-05T11:22:38
+date: 2026-05-05T11:53:26
 type: SourceFile
 source: GalaxyNotes
 tags: #frontend #cockpit #3d

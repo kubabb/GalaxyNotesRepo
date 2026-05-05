@@ -94,8 +94,52 @@ python src/librarian.py
 - `.opencode/*.md` files (`astronomer.md`, `coder.md`, `debugger.md`, `git-pusher.md`, `librarian.md`, `security_officer.md`, `storyteller.md`, `watchman.md`) are agent personas used by the OpenCode plugin. They are kept in git (`!.opencode/*.md` in `.gitignore`).
 - `plan.txt` is the living project roadmap (Polish). Check it before large architectural changes.
 
+## OpenCode Agent Workflow (IMPORTANT – READ THIS)
+
+**Always use agents when working on this project.** They are the primary workforce, not just helpers.
+
+### Parallel Execution (v3.0)
+
+`main.py` runs agents in parallel via `ThreadPoolExecutor(max_workers=3)`:
+
+```
+SECURITY-OFFICER (sequential boot check)
+  └── Parallel Phase:
+      ├── ASTRONOMER  ──► galaxy_data.json
+      ├── STORYTELLER ──► metadata.json
+      └── LIBRARIAN   ──► .galaxy_map/ mirrors
+  └── DEBUGGER (sequential QA after writes finish)
+  └── GIT-PUSHER (optional, sequential at end)
+```
+
+Agents do **not** conflict because:
+- ASTRONOMER writes `data/output/galaxy_data.json`
+- STORYTELLER writes `data/output/metadata.json`
+- LIBRARIAN reads source files and writes `.galaxy_map/*.md` mirrors
+- No shared mutable state; Windows file reads are non-locking
+
+### When to use which agent
+
+| Agent | File | Use when you need to... |
+|-------|------|------------------------|
+| **SECURITY-OFFICER** | `src/env_guard.py` | Validate `.env`, `.gitignore`, API keys before any run. Never skip. |
+| **ASTRONOMER** | `src/galaxy_mapper.py` | Change galaxy shape, coordinates, clusters, spiral arms, Z-depth, node colors. |
+| **STORYTELLER** | `src/metadata_engine.py` | Change metadata format, brief style, star classes, content truncation, API mode. |
+| **LIBRARIAN** | `src/librarian.py` | Sync `.galaxy_map/` documentation mirrors, update `Project_Log.md`. Always runs. |
+| **DEBUGGER** | `src/debugger.py` | Run QA before push. Checks API leaks, JSON validity, Python compile. |
+| **GIT-PUSHER** | `src/git_manager.py` | Push to remote. Runs only with `--push` flag. |
+| **WATCHMAN** | `src/pipeline_guard.py` | Supervisor that wraps all agents in `try/except`. You don't call it directly. |
+
+### Rules for OpenCode agent usage
+
+1. **Run `python main.py` after every significant change** to regenerate data and mirrors.
+2. **Use `--push` only after DEBUGGER passes.**
+3. **If an agent fails, check `logs/watchman.log`** before retrying.
+4. **Librarian must always run** to keep `.galaxy_map/` documentation in sync.
+5. **Never commit without GIT-PUSHER approval** (or manual `git push` if you know what you're doing).
+
 ## New / Updated Agents
 
 - **`src/librarian.py`** — syncs `.galaxy_map/` mirror structure. Creates `.md` mirror for every source file with YAML frontmatter, tags, and WikiLinks. Run manually or via `main.py` Faza 4.
 - **`src/debugger.py`** — QA agent. Compiled into `main.py` Faza 5. Runs `full_qa_report()` automatically after pipeline.
-- **`src/galaxy_mapper.py` (ASTRONOMER v3.0)** — extreme volumetric dispersion. Clusters spread across ±700 on all axes, orphans up to ±1400. True 3D cloud.
+- **`src/galaxy_mapper.py` (ASTRONOMER v3.0)** — cosmic plane layout. Clusters spread across ±1100 on X/Y axes with Z depth ±20 (flat galaxy view). Orphans up to ±1800 on X/Y. True 2D cosmic map with slight depth.

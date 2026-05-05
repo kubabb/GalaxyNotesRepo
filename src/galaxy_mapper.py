@@ -228,19 +228,19 @@ def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
     degrees = {name: len(data["links_in"]) + len(data["links_out"]) for name, data in nodes.items()}
     n = len(nodes)
 
-    # Więcej klastrów, rozrzuconych głęboko w przestrzeni 3D
+    # Klastry rozrzucone na szerokiej płaszczyźnie XY (kosmos 2D z lekką głębią Z)
     cluster_count = max(6, min(14, int(n ** 0.4)))
     clusters = []
     for _ in range(cluster_count):
         clusters.append({
-            "cx": random.uniform(-700, 700),
-            "cy": random.uniform(-700, 700),
-            "cz": random.uniform(-600, 600),
-            "radius": random.uniform(180, 500),
+            "cx": random.uniform(-1100, 1100),
+            "cy": random.uniform(-900, 900),
+            "cz": random.uniform(-20, 20),
+            "radius": random.uniform(250, 650),
         })
 
     # Supermasywna czarna dziura – mocne przyciąganie centrum
-    core = {"cx": 0, "cy": 0, "cz": 0, "radius": 220}
+    core = {"cx": 0, "cy": 0, "cz": 0, "radius": 300}
     clusters.append(core)
 
     for name in nodes:
@@ -249,10 +249,10 @@ def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
         arm_index = groups.get(name, 0) % arm_count if arm_count else 0
 
         if degree == 0:
-            # Osierocone notatki – kompletnie losowo w ogromnej przestrzeni
-            x = random.uniform(-1400, 1400)
+            # Osierocone notatki – szeroko na płaszczyźnie XY, niewielka głębia Z
+            x = random.uniform(-1800, 1800)
             y = random.uniform(-1400, 1400)
-            z = random.uniform(-1000, 1000)
+            z = random.uniform(-30, 30)
         else:
             # Wybierz klaster deterministycznie
             cluster_idx = hash(name) % len(clusters)
@@ -261,21 +261,20 @@ def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
             # Promień: ważniejsze bliżej środka klastra
             max_r = cluster["radius"]
             r = random.uniform(0, max_r) * (1.0 - min(degree, 10) / 12.0)
-            r += random.uniform(-100, 100)
-            r = max(20, r)
+            r += random.uniform(-120, 120)
+            r = max(30, r)
 
-            # Sferyczne rozłożenie wewnątrz klastra
+            # Rozłożenie na płaszczyźnie XY z lekką głębią Z
             theta = random.uniform(0, 2 * math.pi)
-            phi = random.uniform(0, math.pi)
 
-            x = cluster["cx"] + r * math.sin(phi) * math.cos(theta)
-            y = cluster["cy"] + r * math.sin(phi) * math.sin(theta)
-            z = cluster["cz"] + r * math.cos(phi)
+            x = cluster["cx"] + r * math.cos(theta)
+            y = cluster["cy"] + r * math.sin(theta)
+            z = cluster["cz"] + random.uniform(-15, 15)
 
-            # Ekstremalny szum 3D – całkowicie niszczymy regularność
-            x += random.uniform(-150, 150)
-            y += random.uniform(-150, 150)
-            z += random.uniform(-250, 250)
+            # Szum – utrzymujemy głównie na XY, Z tylko delikatnie
+            x += random.uniform(-200, 200)
+            y += random.uniform(-200, 200)
+            z += random.uniform(-8, 8)
 
             # Superważne notatki mocniej w centrum galaktyki
             if degree >= 8:
