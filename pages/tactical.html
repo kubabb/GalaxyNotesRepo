@@ -279,13 +279,15 @@ function createShip() {
 }
 
 const ship = createShip();
+ship.scale.setScalar(6);
 scene.add(ship);
 
-// ─── CAMERA RIGID ATTACHMENT (6DOF) ───
-// Kamera jest dzieckiem statku – obraca się WRAZ z nim. 
-// NIE używamy lookAt, bo nadpisałby rotację lokalną.
-camera.position.set(45, 12, 28);
-ship.add(camera);
+// ─── CAMERA (independent, follows ship) ───
+// Kamera NIE jest dzieckiem statku – patrzy NA statek z zewnątrz.
+// Dzięki temu statek jest widoczny jako model 3D latający nad galaktyką.
+const CAM_OFFSET = new THREE.Vector3(140, 220, 140);
+camera.position.copy(CAM_OFFSET);
+scene.add(camera);
 
 // ─── STARFIELD ───
 const bgGeo = new THREE.BufferGeometry();
@@ -743,6 +745,13 @@ function updateFlight() {
   updateSpeedHUD();
 }
 
+// ─── CAMERA FOLLOW (external, looks at ship) ───
+function updateCamera() {
+  const targetPos = ship.position.clone().add(CAM_OFFSET);
+  camera.position.lerp(targetPos, 0.06);
+  camera.lookAt(ship.position);
+}
+
 // ─── CROSSHAIR LOCK ───
 function updateCrosshair() {
   const ch = document.getElementById('crosshair');
@@ -854,6 +863,7 @@ window.closeTerminal = function() {
 function animate() {
   requestAnimationFrame(animate);
   updateFlight();
+  updateCamera();
   updateParticles();
   updateSpeedLines();
   updateWildStars();

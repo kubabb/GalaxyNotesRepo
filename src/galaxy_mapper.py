@@ -233,10 +233,10 @@ def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
     clusters = []
     for _ in range(cluster_count):
         clusters.append({
-            "cx": random.uniform(-2200, 2200),
-            "cy": random.uniform(-1400, 1400),
+            "cx": random.uniform(-3500, 3500),
+            "cy": random.uniform(-1600, 1600),
             "cz": random.uniform(-25, 25),
-            "radius": random.uniform(350, 850),
+            "radius": random.uniform(500, 1200),
         })
 
     # Supermasywna czarna dziura – mocne przyciąganie centrum
@@ -249,9 +249,9 @@ def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
         arm_index = groups.get(name, 0) % arm_count if arm_count else 0
 
         if degree == 0:
-            # Osierocone notatki – szeroko na płaszczyźnie XY, niewielka głębia Z
-            x = random.uniform(-3200, 3200)
-            y = random.uniform(-2200, 2200)
+            # Osierocone notatki – bardzo szeroko na osi X
+            x = random.uniform(-5500, 5500)
+            y = random.uniform(-2800, 2800)
             z = random.uniform(-40, 40)
         else:
             # Wybierz klaster deterministycznie
