@@ -111,7 +111,7 @@
   <div class="flex items-center gap-3">
     <button id="center-cam-btn" class="font-mono text-[10px] text-[#00f3ff] border border-[#00f3ff]/40 px-3 py-1 hover:bg-[#00f3ff]/20 hover:shadow-[0_0_10px_rgba(0,243,255,0.3)] transition uppercase tracking-wider" onclick="resetCamera()">📍 WYŚRODKUJ</button>
     <button id="scan-btn" class="font-mono text-[10px] text-[#00f3ff] border border-[#00f3ff]/40 px-3 py-1 hover:bg-[#00f3ff]/20 hover:shadow-[0_0_10px_rgba(0,243,255,0.3)] transition uppercase tracking-wider" onclick="triggerScan()">⚡ RE-SKAN</button>
-    <div class="font-mono text-[10px] text-[#849495]">6DOF ACTIVE // LPM: ORBITA // Scroll: ZOOM</div>
+    <div class="font-mono text-[10px] text-[#849495]">6DOF ACTIVE // LPM: PILOT // RMB: ORBITA // Scroll: ZOOM</div>
   </div>
 </div>
 
@@ -179,16 +179,17 @@
     <div class="font-mono text-[10px] text-[#b9cacb] mb-4 tracking-widest uppercase border-b border-[#3a494b] pb-2">Sterowanie statkiem</div>
     <div class="grid grid-cols-2 gap-2 mb-5 font-mono text-xs text-[#e2e2e2]">
       <div><span class="text-[#00f3ff]">W / S</span> – ciąg (przód / tył)</div>
-      <div><span class="text-[#00f3ff]">A / D</span> – obrót (yaw)</div>
-      <div><span class="text-[#00f3ff]">R / F</span> – pitch (nose góra / dół)</div>
+      <div><span class="text-[#00f3ff]">A / D</span> – strafe (lewo / prawo)</div>
+      <div><span class="text-[#00f3ff]">R / F</span> – wysokość (góra / dół)</div>
       <div><span class="text-[#00f3ff]">Q / E</span> – roll (beczka)</div>
+      <div><span class="text-[#00f3ff]">LPM + mysz</span> – yaw / pitch statku</div>
       <div><span class="text-[#00f3ff]">Shift</span> – warp (hiperprędkość)</div>
       <div><span class="text-[#00f3ff]">C / ESC</span> – anuluj nawigację</div>
     </div>
 
     <div class="font-mono text-[10px] text-[#b9cacb] mb-4 tracking-widest uppercase border-b border-[#3a494b] pb-2">Sterowanie kamerą</div>
     <div class="grid grid-cols-2 gap-2 mb-5 font-mono text-xs text-[#e2e2e2]">
-      <div><span class="text-[#00f3ff]">LPM + mysz</span> – orbita kamery</div>
+      <div><span class="text-[#00f3ff]">RMB + mysz</span> – orbita kamery (obserwacja)</div>
       <div><span class="text-[#00f3ff]">Scroll</span> – zoom (odległość)</div>
       <div><span class="text-[#00f3ff]">TAB</span> – to menu</div>
     </div>
@@ -209,8 +210,8 @@
 
 <!-- Telemetry -->
 <div id="telemetry">
-  W/S – Ciąg | A/D – Obrót (Yaw) | R/F – Pitch (nose) | Q/E – Roll<br>
-  LPM (przytrzymaj) – Obrót kamery (Orbit) | Scroll – Zoom | Shift – Warp | TAB – Menu | C/ESC – Anuluj
+  W/S – Ciąg | A/D – Strafe | R/F – Wysokość | Q/E – Roll<br>
+  LPM (przytrzymaj) – Sterowanie statkiem (Yaw/Pitch) | RMB – Orbita kamery | Scroll – Zoom | Shift – Warp | TAB – Menu | C/ESC – Anuluj
 </div>
 
 <!-- Loading -->
@@ -260,12 +261,14 @@ const S = {
   sensMode: 1,
   clickTarget: null,
   clickNavActive: false,
-  // Orbit camera params
-  camAzimuth: Math.PI * 0.25,
-  camElevation: Math.PI * 0.35,
-  camDistance: 280,
-  camMinDist: 80,
-  camMaxDist: 1200,
+  // Chase-cam params (rigid camera behind ship)
+  camDistance: 80,
+  camMinDist: 40,
+  camMaxDist: 400,
+  camOffset: new THREE.Vector3(0, 18, 55), // behind and above ship in local space
+  mouseDownRight: false,
+  camYaw: 0,
+  camPitch: 0.25,
 };
 
 // ─── SCENE ───
@@ -609,22 +612,41 @@ window.addEventListener('keyup', e => {
 
 window.addEventListener('mousemove', e => {
   if(S.mouseDownLeft) {
-    // Orbit camera: mouse moves azimuth/elevation (full sphere)
-    S.camAzimuth -= e.movementX * CFG.mouseSensitivity * 0.5;
-    S.camElevation += e.movementY * CFG.mouseSensitivity * 0.5;
-    S.camElevation = Math.max(0.05, Math.min(Math.PI - 0.05, S.camElevation));
+    // LPM steers ship: yaw (X) + pitch (Y)
+    ship.rotateY(-e.movementX * CFG.mouseSensitivity * 0.4);
+    ship.rotateX(-e.movementY * CFG.mouseSensitivity * 0.3);
+    // Clamp pitch so ship never flips upside-down
+    const euler = new THREE.Euler().setFromQuaternion(ship.quaternion, 'YXZ');
+    euler.x = Math.max(-1.4, Math.min(1.4, euler.x));
+    ship.quaternion.setFromEuler(euler);
+  }
+  if(S.mouseDownRight) {
+    // RMB orbits camera around ship (for observation)
+    S.camYaw -= e.movementX * CFG.mouseSensitivity * 0.5;
+    S.camPitch += e.movementY * CFG.mouseSensitivity * 0.5;
+    S.camPitch = Math.max(0.05, Math.min(Math.PI - 0.05, S.camPitch));
   }
 });
 window.addEventListener('mousedown', e => {
   if(e.button===0) {
     S.mouseDownLeft = true;
     canvas.style.cursor = 'none';
-    document.getElementById('flight-mode').textContent = 'TRYB: KAMERA (Orbit)';
+    document.getElementById('flight-mode').textContent = 'TRYB: PILOT (Sterowanie)';
+  }
+  if(e.button===2) {
+    S.mouseDownRight = true;
+    canvas.style.cursor = 'none';
+    document.getElementById('flight-mode').textContent = 'TRYB: OBSERWACJA (Orbita)';
   }
 });
 window.addEventListener('mouseup', e => {
   if(e.button===0) {
     S.mouseDownLeft = false;
+    canvas.style.cursor = 'crosshair';
+    document.getElementById('flight-mode').textContent = 'TRYB: MANUALNY';
+  }
+  if(e.button===2) {
+    S.mouseDownRight = false;
     canvas.style.cursor = 'crosshair';
     document.getElementById('flight-mode').textContent = 'TRYB: MANUALNY';
   }
@@ -755,13 +777,25 @@ function updateFlight() {
     return;
   }
 
-  // Yaw (A/D) – rotate ship horizontally
-  if(S.keys['KeyA']) ship.rotateY(CFG.yawSpeed);
-  if(S.keys['KeyD']) ship.rotateY(-CFG.yawSpeed);
+  // Strafe left/right (A/D) – move sideways in local space
+  if(S.keys['KeyA']) {
+    const left = new THREE.Vector3(-1, 0, 0).applyQuaternion(ship.quaternion);
+    ship.position.add(left.multiplyScalar(CFG.speed * 0.5));
+  }
+  if(S.keys['KeyD']) {
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(ship.quaternion);
+    ship.position.add(right.multiplyScalar(CFG.speed * 0.5));
+  }
 
-  // Pitch (R/F) – nose up/down
-  if(S.keys['KeyR']) ship.rotateX(CFG.pitchSpeed);
-  if(S.keys['KeyF']) ship.rotateX(-CFG.pitchSpeed);
+  // Strafe up/down (R/F) – move vertically in local space
+  if(S.keys['KeyR']) {
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(ship.quaternion);
+    ship.position.add(up.multiplyScalar(CFG.speed * 0.5));
+  }
+  if(S.keys['KeyF']) {
+    const down = new THREE.Vector3(0, -1, 0).applyQuaternion(ship.quaternion);
+    ship.position.add(down.multiplyScalar(CFG.speed * 0.5));
+  }
 
   // Roll (Q/E) – clamped, auto-levels
   const euler = new THREE.Euler().setFromQuaternion(ship.quaternion, 'YXZ');
@@ -811,17 +845,30 @@ function updateFlight() {
   updateSpeedHUD();
 }
 
-// ─── CAMERA ORBIT (around ship) ───
+// ─── CAMERA CHASE-CAM (rigid, behind ship) ───
 function updateCamera() {
-  const offset = new THREE.Vector3(
-    Math.sin(S.camElevation) * Math.cos(S.camAzimuth),
-    Math.cos(S.camElevation),
-    Math.sin(S.camElevation) * Math.sin(S.camAzimuth)
-  ).multiplyScalar(S.camDistance);
-  const targetPos = ship.position.clone().add(offset);
-  camera.position.lerp(targetPos, 0.15);
-  camera.lookAt(ship.position);
-  // Zawsze patrz "górą" do góry – unikamy flipa kamery przy pełnej orbicie
+  // Base offset behind ship in local space
+  const offset = S.camOffset.clone().multiplyScalar(S.camDistance / 55);
+  // Apply ship rotation
+  offset.applyQuaternion(ship.quaternion);
+  // If RMB orbit is active, add orbital rotation around ship
+  if (S.mouseDownRight) {
+    const orbitOffset = new THREE.Vector3(
+      Math.sin(S.camPitch) * Math.cos(S.camYaw),
+      Math.cos(S.camPitch),
+      Math.sin(S.camPitch) * Math.sin(S.camYaw)
+    ).multiplyScalar(S.camDistance);
+    const orbitPos = ship.position.clone().add(orbitOffset);
+    camera.position.lerp(orbitPos, 0.12);
+    camera.lookAt(ship.position);
+  } else {
+    // Normal chase-cam: behind ship, looking where ship looks
+    const targetPos = ship.position.clone().add(offset);
+    camera.position.lerp(targetPos, 0.15);
+    // Look ahead of ship, not at ship center
+    const lookTarget = ship.position.clone().add(new THREE.Vector3(0, 5, -80).applyQuaternion(ship.quaternion));
+    camera.lookAt(lookTarget);
+  }
   camera.up.set(0, 1, 0);
 }
 
@@ -876,9 +923,11 @@ function updateSpeedHUD() {
 
 // ─── HUD ───
 window.resetCamera = function() {
-  S.camAzimuth = Math.PI * 0.25;
-  S.camElevation = Math.PI * 0.35;
-  S.camDistance = 280;
+  S.camDistance = 80;
+  S.camYaw = 0;
+  S.camPitch = 0.25;
+  ship.position.set(0, 8000, 0);
+  ship.rotation.set(-Math.PI/4, 0, 0);
 };
 window.toggleSettingsModal = function() {
   const m = document.getElementById('settings-modal');
