@@ -221,49 +221,67 @@ def build_edges(nodes: dict):
 def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
     """
     Przypisuje współrzędne 3D (X, Y, Z) dla każdego węzła.
-    Ważniejsze notatki (więcej linków) -> mniejszy promień (bliżej centrum).
-    Każde ramię spirali ma swój sektor kątowy.
+    UKŁAD WOLUMETRYCZNY – ekstremalna dyspersja na osiach Y i Z.
+    Gwiazdy tworzą trójwymiarową chmurę; użytkownik jest WŚRÓD nich.
     """
     positions = {}
     degrees = {name: len(data["links_in"]) + len(data["links_out"]) for name, data in nodes.items()}
+    n = len(nodes)
 
-    # Globalne sortowanie według degree malejąco (ważniejsze = niższy indeks)
-    sorted_names = sorted(nodes.keys(), key=lambda x: degrees[x], reverse=True)
-    rank_map = {name: i for i, name in enumerate(sorted_names)}
+    # Więcej klastrów, rozrzuconych głęboko w przestrzeni 3D
+    cluster_count = max(6, min(14, int(n ** 0.4)))
+    clusters = []
+    for _ in range(cluster_count):
+        clusters.append({
+            "cx": random.uniform(-700, 700),
+            "cy": random.uniform(-700, 700),
+            "cz": random.uniform(-600, 600),
+            "radius": random.uniform(180, 500),
+        })
 
-    # Parametry spirali
-    spiral_tightness = 0.25
-    min_radius = 20
-    radius_step = 22
-    max_radius = 400
+    # Supermasywna czarna dziura – mocne przyciąganie centrum
+    core = {"cx": 0, "cy": 0, "cz": 0, "radius": 220}
+    clusters.append(core)
 
     for name in nodes:
         degree = degrees[name]
         val = min(max(degree, 1), 10)
-        rank = rank_map[name]
-
-        # Promień: ważniejsze bliżej centrum
-        R = min_radius + rank * radius_step
-        if R > max_radius:
-            R = max_radius + random.uniform(0, 60)
-
-        # Kąt sektora ramienia + spiralne rozłożenie wzdłuż ranku
         arm_index = groups.get(name, 0) % arm_count if arm_count else 0
-        arm_center = arm_index * (2 * math.pi / arm_count) if arm_count else 0
-        angle = arm_center + rank * spiral_tightness + random.uniform(-0.08, 0.08)
 
-        x = R * math.cos(angle)
-        y = R * math.sin(angle)
-
-        # Brak linków -> zewnętrzny orbit
         if degree == 0:
-            R = max_radius + random.uniform(40, 100)
-            angle = random.uniform(0, 2 * math.pi)
-            x = R * math.cos(angle)
-            y = R * math.sin(angle)
+            # Osierocone notatki – kompletnie losowo w ogromnej przestrzeni
+            x = random.uniform(-1400, 1400)
+            y = random.uniform(-1400, 1400)
+            z = random.uniform(-1000, 1000)
+        else:
+            # Wybierz klaster deterministycznie
+            cluster_idx = hash(name) % len(clusters)
+            cluster = clusters[cluster_idx]
 
-        # Z = masa * random(-1, 1)
-        z = val * random.uniform(-1, 1)
+            # Promień: ważniejsze bliżej środka klastra
+            max_r = cluster["radius"]
+            r = random.uniform(0, max_r) * (1.0 - min(degree, 10) / 12.0)
+            r += random.uniform(-100, 100)
+            r = max(20, r)
+
+            # Sferyczne rozłożenie wewnątrz klastra
+            theta = random.uniform(0, 2 * math.pi)
+            phi = random.uniform(0, math.pi)
+
+            x = cluster["cx"] + r * math.sin(phi) * math.cos(theta)
+            y = cluster["cy"] + r * math.sin(phi) * math.sin(theta)
+            z = cluster["cz"] + r * math.cos(phi)
+
+            # Ekstremalny szum 3D – całkowicie niszczymy regularność
+            x += random.uniform(-150, 150)
+            y += random.uniform(-150, 150)
+            z += random.uniform(-250, 250)
+
+            # Superważne notatki mocniej w centrum galaktyki
+            if degree >= 8:
+                x *= 0.25
+                y *= 0.25
+                z *= 0.25
 
         positions[name] = {
             "x": round(x, 2),
