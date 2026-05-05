@@ -1,6 +1,6 @@
 ---
 title: "index"
-date: 2026-05-05T11:53:26
+date: 2026-05-06T00:43:18
 type: SourceFile
 source: GalaxyNotes
 tags: #frontend #cockpit #3d

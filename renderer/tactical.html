@@ -528,6 +528,7 @@ async function loadGalaxy() {
 function generateFallbackGalaxy() {
   console.log('[WIZJER] Generowanie fallback galaktyki (400 gwiazd)...');
   const colors = ['#FF5733','#33FF57','#3357FF','#F333FF','#33FFF5','#FF33A8','#FFD433','#8D33FF'];
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
   for(let i=0;i<400;i++) {
     const id = 'STAR_'+i;
     const x = (Math.random()-0.5)*12000;
@@ -552,15 +553,27 @@ function generateFallbackGalaxy() {
     S.nodeMeshes.push(mesh);
     S.nodes.push({ id, mesh, x, y, z, val: 1, color });
     S.meta[id] = { star_class: 'Fallback', energy_level: 'Standardowa', brief: 'Gwiazda generowana proceduralnie.', file: id };
+
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
   }
-  ship.position.set(0, 1200, 6000);
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const cz = (minZ + maxZ) / 2;
+  const rangeY = maxY - minY;
+  const rangeZ = maxZ - minZ;
+  S.galaxyBounds = { cx, cy, cz, rangeY, rangeZ };
+  ship.position.set(cx, cy + rangeY * 0.12, cz + Math.max(rangeZ * 0.3, 200));
   ship.rotation.set(-0.4, Math.PI, 0);
-  console.log('[WIZJER] Fallback gotowy. Statek nad galaktyką (0,1200,6000), patrzy w centrum.');
+  console.log(`[WIZJER] Fallback gotowy. Centrum: (${cx.toFixed(0)},${cy.toFixed(0)},${cz.toFixed(0)}), statek: (${ship.position.x.toFixed(0)},${ship.position.y.toFixed(0)},${ship.position.z.toFixed(0)})`);
 }
 
 function buildGalaxy(galaxyData) {
   const nodeDict = galaxyData.nodes || galaxyData;
   const edgeList = galaxyData.edges || [];
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
 
   Object.entries(nodeDict).forEach(([id, n]) => {
     const size = CFG.starSize * Math.min(n.val||1, 5) * 1.2;
@@ -582,6 +595,10 @@ function buildGalaxy(galaxyData) {
 
     S.nodeMeshes.push(mesh);
     S.nodes.push({ id, mesh, x:n.x, y:n.y, z:n.z, val:n.val, color });
+
+    minX = Math.min(minX, n.x||0); maxX = Math.max(maxX, n.x||0);
+    minY = Math.min(minY, n.y||0); maxY = Math.max(maxY, n.y||0);
+    minZ = Math.min(minZ, n.z||0); maxZ = Math.max(maxZ, n.z||0);
   });
 
   edgeList.forEach(e => {
@@ -595,9 +612,15 @@ function buildGalaxy(galaxyData) {
     }
   });
 
-  // Position ship outside the galaxy, facing down toward center
-  ship.position.set(0, 1200, 6000);
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const cz = (minZ + maxZ) / 2;
+  const rangeY = maxY - minY;
+  const rangeZ = maxZ - minZ;
+  S.galaxyBounds = { cx, cy, cz, rangeY, rangeZ };
+  ship.position.set(cx, cy + rangeY * 0.12, cz + Math.max(rangeZ * 0.25, 300));
   ship.rotation.set(-0.4, Math.PI, 0);
+  console.log(`[WIZJER] Galaktyka zbudowana. Centrum: (${cx.toFixed(0)},${cy.toFixed(0)},${cz.toFixed(0)}), statek: (${ship.position.x.toFixed(0)},${ship.position.y.toFixed(0)},${ship.position.z.toFixed(0)})`);
 }
 
 // ─── INPUT ───
@@ -941,7 +964,12 @@ window.resetCamera = function() {
   S.camDistance = 220;
   S.camYaw = 0;
   S.camPitch = 0.25;
-  ship.position.set(0, 1200, 6000);
+  if (S.galaxyBounds) {
+    const b = S.galaxyBounds;
+    ship.position.set(b.cx, b.cy + b.rangeY * 0.12, b.cz + Math.max(b.rangeZ * 0.25, 300));
+  } else {
+    ship.position.set(0, 400, 300);
+  }
   ship.rotation.set(-0.4, Math.PI, 0);
 };
 window.toggleSettingsModal = function() {
