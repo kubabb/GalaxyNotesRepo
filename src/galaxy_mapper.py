@@ -229,18 +229,18 @@ def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
     n = len(nodes)
 
     # Klastry rozrzucone na szerokiej płaszczyźnie XY (kosmos 2D z lekką głębią Z)
-    cluster_count = max(6, min(14, int(n ** 0.4)))
+    cluster_count = max(8, min(16, int(n ** 0.4)))
     clusters = []
     for _ in range(cluster_count):
         clusters.append({
-            "cx": random.uniform(-1100, 1100),
-            "cy": random.uniform(-900, 900),
-            "cz": random.uniform(-20, 20),
-            "radius": random.uniform(250, 650),
+            "cx": random.uniform(-2200, 2200),
+            "cy": random.uniform(-1400, 1400),
+            "cz": random.uniform(-25, 25),
+            "radius": random.uniform(350, 850),
         })
 
     # Supermasywna czarna dziura – mocne przyciąganie centrum
-    core = {"cx": 0, "cy": 0, "cz": 0, "radius": 300}
+    core = {"cx": 0, "cy": 0, "cz": 0, "radius": 400}
     clusters.append(core)
 
     for name in nodes:
@@ -250,9 +250,9 @@ def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
 
         if degree == 0:
             # Osierocone notatki – szeroko na płaszczyźnie XY, niewielka głębia Z
-            x = random.uniform(-1800, 1800)
-            y = random.uniform(-1400, 1400)
-            z = random.uniform(-30, 30)
+            x = random.uniform(-3200, 3200)
+            y = random.uniform(-2200, 2200)
+            z = random.uniform(-40, 40)
         else:
             # Wybierz klaster deterministycznie
             cluster_idx = hash(name) % len(clusters)
@@ -261,26 +261,26 @@ def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
             # Promień: ważniejsze bliżej środka klastra
             max_r = cluster["radius"]
             r = random.uniform(0, max_r) * (1.0 - min(degree, 10) / 12.0)
-            r += random.uniform(-120, 120)
-            r = max(30, r)
+            r += random.uniform(-180, 180)
+            r = max(40, r)
 
             # Rozłożenie na płaszczyźnie XY z lekką głębią Z
             theta = random.uniform(0, 2 * math.pi)
 
             x = cluster["cx"] + r * math.cos(theta)
             y = cluster["cy"] + r * math.sin(theta)
-            z = cluster["cz"] + random.uniform(-15, 15)
+            z = cluster["cz"] + random.uniform(-20, 20)
 
             # Szum – utrzymujemy głównie na XY, Z tylko delikatnie
-            x += random.uniform(-200, 200)
-            y += random.uniform(-200, 200)
-            z += random.uniform(-8, 8)
+            x += random.uniform(-300, 300)
+            y += random.uniform(-300, 300)
+            z += random.uniform(-10, 10)
 
             # Superważne notatki mocniej w centrum galaktyki
             if degree >= 8:
-                x *= 0.25
-                y *= 0.25
-                z *= 0.25
+                x *= 0.2
+                y *= 0.2
+                z *= 0.2
 
         positions[name] = {
             "x": round(x, 2),

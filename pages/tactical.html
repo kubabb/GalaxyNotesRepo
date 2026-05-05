@@ -98,6 +98,7 @@
 
 <!-- Sidebar -->
 <nav id="sidebar">
+  <a href="../index.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">home</span><span class="nav-label">ONBOARDING</span></a>
   <a href="dashboard.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">dashboard</span><span class="nav-label">PANEL</span></a>
   <a href="tactical.html" class="nav-item active"><span class="material-symbols-outlined" style="font-size:20px;">flight</span><span class="nav-label">WIZJER</span></a>
   <a href="log.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:20px;">terminal</span><span class="nav-label">DZIENNIK</span></a>
@@ -211,6 +212,10 @@ const S = {
   nodes: [], nodeMeshes: [],
   meta: {}, selected: null, lockedTarget: null,
   navActive: false, navTarget: null,
+  velocity: new THREE.Vector3(),
+  acceleration: 0.15,
+  drag: 0.94,
+  maxVelocity: 12.0,
 };
 
 // ─── SCENE ───
@@ -333,6 +338,54 @@ function updateParticles() {
   }
 }
 
+// ─── WILD STARS (moving background stars for speed sensation) ───
+const wildStarCount = 800;
+const wildStars = [];
+const wildStarGeo = new THREE.SphereGeometry(0.15, 4, 4);
+const wildStarMat = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.4 });
+
+for(let i=0; i<wildStarCount; i++) {
+  const mesh = new THREE.Mesh(wildStarGeo, wildStarMat.clone());
+  mesh.position.set(
+    (Math.random()-0.5)*6000,
+    (Math.random()-0.5)*4000,
+    (Math.random()-0.5)*2000
+  );
+  mesh.userData = {
+    basePos: mesh.position.clone(),
+    driftSpeed: 0.2 + Math.random() * 0.8,
+    driftDir: new THREE.Vector3((Math.random()-0.5), (Math.random()-0.5), (Math.random()-0.5)*0.2).normalize()
+  };
+  scene.add(mesh);
+  wildStars.push(mesh);
+}
+
+function updateWildStars() {
+  const vlen = S.velocity.length();
+  const speedFactor = Math.min(vlen / CFG.speed, 3.0);
+  wildStars.forEach(star => {
+    // Stars drift on their own
+    star.position.add(star.userData.driftDir.clone().multiplyScalar(star.userData.driftSpeed * 0.1));
+    // When ship moves fast, stars streak past (opposite direction)
+    if(vlen > 0.5) {
+      const streak = S.velocity.clone().multiplyScalar(-0.3 * speedFactor);
+      star.position.add(streak);
+    }
+    // Wrap around if too far
+    const dist = star.position.distanceTo(ship.position);
+    if(dist > 4000) {
+      star.position.copy(ship.position).add(new THREE.Vector3(
+        (Math.random()-0.5)*6000,
+        (Math.random()-0.5)*4000,
+        (Math.random()-0.5)*2000
+      ));
+      star.userData.basePos.copy(star.position);
+    }
+    // Brighten when moving fast
+    star.material.opacity = 0.2 + Math.min(speedFactor * 0.3, 0.6);
+  });
+}
+
 // ─── SPEED LINES (warp effect) ───
 const speedLineGeo = new THREE.BufferGeometry();
 const speedLineCount = 200;
@@ -345,10 +398,11 @@ scene.add(speedLines);
 
 function updateSpeedLines() {
   const positions = speedLineGeo.attributes.position.array;
-  const isMoving = S.currentSpeed > CFG.speed * 0.8 || S.navActive;
-  speedLineMat.opacity = THREE.MathUtils.lerp(speedLineMat.opacity, isMoving ? 0.5 : 0.0, 0.08);
+  const vlen = S.velocity.length();
+  const isMoving = vlen > CFG.speed * 0.3 || S.navActive;
+  speedLineMat.opacity = THREE.MathUtils.lerp(speedLineMat.opacity, isMoving ? 0.6 : 0.0, 0.08);
   if(!isMoving) return;
-  const spd = S.currentSpeed * 1.2;
+  const spd = vlen * 1.5;
   const shipDir = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
   for(let i=0;i<speedLineCount;i++) {
     const ix = i*3;
@@ -545,7 +599,7 @@ function updateNav() {
   updateSpeedHUD();
 }
 
-// ─── 6DOF FLIGHT PHYSICS ───
+// ─── 6DOF FLIGHT PHYSICS (with inertia) ───
 function updateFlight() {
   if(S.navActive) {
     updateNav();
@@ -574,16 +628,39 @@ function updateFlight() {
   if(S.keys['KeyR']) thrust.y += 1;
   if(S.keys['KeyF']) thrust.y -= 1;
 
-  let spd = CFG.speed;
-  if(S.keys['ShiftLeft']||S.keys['ShiftRight']) spd = CFG.warpSpeed;
-  else if(S.keys['ControlLeft']||S.keys['ControlRight']) spd = CFG.maxSpeed;
+  let maxSpd = CFG.speed;
+  if(S.keys['ShiftLeft']||S.keys['ShiftRight']) maxSpd = CFG.warpSpeed;
+  else if(S.keys['ControlLeft']||S.keys['ControlRight']) maxSpd = CFG.maxSpeed;
 
+  // Apply thrust to velocity (acceleration)
   if(thrust.lengthSq() > 0) {
-    thrust.normalize().multiplyScalar(spd);
+    thrust.normalize().multiplyScalar(S.acceleration * (S.isWarp ? 2.5 : 1.0));
     thrust.applyQuaternion(ship.quaternion);
-    ship.position.add(thrust);
-    if(Math.random() > 0.3) emitParticle();
+    S.velocity.add(thrust);
   }
+
+  // Clamp velocity
+  const vlen = S.velocity.length();
+  if(vlen > maxSpd) {
+    S.velocity.normalize().multiplyScalar(maxSpd);
+  }
+
+  // Apply drag (inertia)
+  S.velocity.multiplyScalar(S.drag);
+
+  // Move ship by velocity
+  if(vlen > 0.01) {
+    ship.position.add(S.velocity);
+    // Emit particles proportional to speed
+    const particleChance = Math.min(vlen / maxSpd, 1.0) * 0.6;
+    if(Math.random() < particleChance) emitParticle();
+  }
+
+  // Bank/tilt based on velocity (visual feedback)
+  const localVel = S.velocity.clone().applyQuaternion(ship.quaternion.clone().invert());
+  const targetTiltZ = -localVel.x * 0.08;
+  const targetTiltX = localVel.z * 0.03;
+  ship.rotation.z += (targetTiltZ - ship.rotation.z) * 0.08;
 
   updateCrosshair();
   updateSpeedHUD();
@@ -702,6 +779,7 @@ function animate() {
   updateFlight();
   updateParticles();
   updateSpeedLines();
+  updateWildStars();
 
   // Engine pulse
   const time = Date.now() * 0.005;
