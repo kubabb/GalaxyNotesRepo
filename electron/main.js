@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, Tray } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -11,6 +11,7 @@ const PROJECTS_DIR = path.join(DATA_DIR, 'projects');
 
 let mainWindow;
 let pythonProcess = null;
+let tray = null;
 
 // ─── ENSURE DEFAULT PROJECT ───
 function ensureDefaultProject() {
@@ -92,11 +93,69 @@ function createWindow() {
     startPythonBackend();
   });
 
+  mainWindow.on('close', (event) => {
+    if (!app.isQuiting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
     if (pythonProcess) {
       pythonProcess.kill();
       pythonProcess = null;
+    }
+  });
+}
+
+// ─── TRAY ICON ───
+function createTray() {
+  const iconPath = path.join(PROJECT_ROOT, 'design', 'screen.png');
+  tray = new Tray(iconPath);
+
+  const contextMenu = Menu.buildFromTemplate([
+    { label: 'Show Galaxy-Pilot', click: () => {
+      if (mainWindow) {
+        mainWindow.show();
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+      }
+    }},
+    { type: 'separator' },
+    { label: 'Dashboard', click: () => {
+      if (mainWindow) {
+        mainWindow.show();
+        mainWindow.webContents.send('navigate', 'dashboard');
+      }
+    }},
+    { label: 'Cockpit', click: () => {
+      if (mainWindow) {
+        mainWindow.show();
+        mainWindow.webContents.send('navigate', 'tactical');
+      }
+    }},
+    { label: 'Log', click: () => {
+      if (mainWindow) {
+        mainWindow.show();
+        mainWindow.webContents.send('navigate', 'log');
+      }
+    }},
+    { type: 'separator' },
+    { label: 'Exit', click: () => {
+      app.isQuiting = true;
+      app.quit();
+    }}
+  ]);
+
+  tray.setToolTip('Galaxy-Pilot v5.1');
+  tray.setContextMenu(contextMenu);
+
+  tray.on('double-click', () => {
+    if (mainWindow) {
+      mainWindow.show();
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
     }
   });
 }
@@ -198,14 +257,20 @@ ipcMain.handle('get-version', () => {
 });
 
 // ─── APP EVENTS ───
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  createTray();
+});
 
 app.on('window-all-closed', () => {
   if (pythonProcess) {
     pythonProcess.kill();
     pythonProcess = null;
   }
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin') {
+    app.isQuiting = true;
+    app.quit();
+  }
 });
 
 app.on('activate', () => {
