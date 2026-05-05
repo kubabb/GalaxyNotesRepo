@@ -1,29 +1,42 @@
 ---
-title: "main.py – Koordynator Pipeline'u"
-date: 2026-05-04T23:42:00
-type: galaxy_map
+title: "main"
+date: 2026-05-05T11:02:21
+type: SourceFile
 source: GalaxyNotes
-tags: #python #pipeline #koordynator
+tags: #python #backend #agent
 ---
 
-# main.py – Koordynator Nocnego Pipeline'u
+## Analiza: `main.py`
 
-## Opis
-Główny entry point operacji „GALAXY-PILOT ENGINE". Koordynuje 5 faz:
-1. SECURITY-OFFICER (boot check)
-2. ASTRONOMER (galaxy_data.json)
-3. STORYTELLER (metadata.json)
-4. Podsumowanie
-5. GIT-PUSHER (opcjonalny push)
+Moduł Python zawierający 1 funkcji. Główne: main.
 
-## Powiązania
-- [[src/env_guard]] – walidacja bezpieczeństwa
-- [[src/pipeline_guard]] – łapanie wyjątków
-- [[src/galaxy_mapper]] – astrometria
-- [[src/metadata_engine]] – metadane Sci-Fi
-- [[src/git_manager]] – deployment
+- **Rozszerzenie:** .py
+- **Lokalizacja:** `main.py`
+- **Liczba linii:** ~89
 
-## Sensor Scan
-- **Star_Class**: Projekt aktywny
-- **Energy_Level**: Wysoka (entry point, krytyczny)
-- **Brief**: Główny koordynator nocnego pipeline'u agentów.
+### Powiązane
+[[argparse]] [[sys]] [[pathlib]] [[env_guard]] [[pipeline_guard]] [[galaxy_mapper]] [[metadata_engine]] [[debugger]]
+
+### Fragment
+```
+"""
+Galaxy Notes Project – Nocny Pipeline Agentów v2.3
+Koordynuje wszystkich agentów:
+  SECURITY-OFFICER -> ASTRONOMER -> STORYTELLER -> LIBRARIAN -> DEBUGGER -> GIT-PUSHER
+aby przetworzyć vault BRAIN w interaktywną mapę wiedzy.
+
+Uruchomienie:
+    python main.py
+    python main.py --brain "C:/path/to/vault"   # override default vault
+    python main.py --push                         # dodatkowo git-push
+"""
+import argparse
+import sys
+from pathlib import Path
+
+# Ścieżki
+PROJECT_ROOT = Path(__file...
+```
+
+---
+*Wygenerowane przez Librarian* | [[01_Projects/GalaxyNotes/PLAN|PLAN]] | [[01_Projects/GalaxyNotes/Project_Log|Project Log]]

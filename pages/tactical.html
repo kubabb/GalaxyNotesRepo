@@ -254,8 +254,9 @@ const ship = createShip();
 scene.add(ship);
 
 // ─── CAMERA RIGID ATTACHMENT (6DOF) ───
+// Kamera jest dzieckiem statku – obraca się WRAZ z nim. 
+// NIE używamy lookAt, bo nadpisałby rotację lokalną.
 camera.position.set(0, 2.8, 15);
-camera.lookAt(0, 0, -60);
 ship.add(camera);
 
 // ─── STARFIELD ───
@@ -289,17 +290,56 @@ const glowTexture = createGlowTexture();
 // ─── LOAD GALAXY ───
 async function loadGalaxy() {
   try {
+    console.log('[WIZJER] Ładowanie danych galaktyki...');
     const [gRes, mRes] = await Promise.all([
       fetch('../data/output/galaxy_data.json'),
       fetch('../data/output/metadata.json')
     ]);
     const galaxyData = await gRes.json();
     S.meta = await mRes.json();
+    console.log(`[WIZJER] Załadowano ${Object.keys(galaxyData.nodes||{}).length} węzłów.`);
     buildGalaxy(galaxyData);
     document.getElementById('loading').style.display = 'none';
   } catch(e) {
-    document.getElementById('loading').innerHTML = `❌ Błąd ładowania danych: ${e.message}<br><small>Upewnij się, że serwer jest uruchomiony (python -m http.server).</small>`;
+    console.error('[WIZJER] Błąd ładowania danych:', e);
+    document.getElementById('loading').innerHTML = `⚠ BRAK DANYCH JSON<br><small>Uruchom: python main.py</small>`;
+    // Fallback: generuj 200 losowych gwiazd, żeby statek mógł latać
+    generateFallbackGalaxy();
+    document.getElementById('loading').style.display = 'none';
   }
+}
+
+function generateFallbackGalaxy() {
+  console.log('[WIZJER] Generowanie fallback galaktyki (200 gwiazd)...');
+  const colors = ['#FF5733','#33FF57','#3357FF','#F333FF','#33FFF5','#FF33A8','#FFD433','#8D33FF'];
+  for(let i=0;i<200;i++) {
+    const id = 'STAR_'+i;
+    const x = (Math.random()-0.5)*1200;
+    const y = (Math.random()-0.5)*1200;
+    const z = (Math.random()-0.5)*800;
+    const size = CFG.starSize * Math.min((Math.random()*4)+1, 5) * 0.45;
+    const color = new THREE.Color(colors[i % colors.length]);
+    const geo = new THREE.SphereGeometry(size, 12, 12);
+    const mat = new THREE.MeshBasicMaterial({ color });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    scene.add(mesh);
+
+    const sprMat = new THREE.SpriteMaterial({
+      map: glowTexture, color, transparent: true, opacity: 0.4,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    });
+    const sprite = new THREE.Sprite(sprMat);
+    sprite.scale.set(CFG.starGlow, CFG.starGlow, 1);
+    mesh.add(sprite);
+
+    S.nodeMeshes.push(mesh);
+    S.nodes.push({ id, mesh, x, y, z, val: 1, color });
+    S.meta[id] = { star_class: 'Fallback', energy_level: 'Standardowa', brief: 'Gwiazda generowana proceduralnie.', file: id };
+  }
+  ship.position.set(0, 0, 600);
+  ship.lookAt(0, 0, 0);
+  console.log('[WIZJER] Fallback gotowy. Statek w pozycji (0,0,600).');
 }
 
 function buildGalaxy(galaxyData) {
@@ -340,7 +380,7 @@ function buildGalaxy(galaxyData) {
   });
 
   // Position ship inside the galaxy cloud
-  ship.position.set(120, 180, 500);
+  ship.position.set(0, 0, 600);
   ship.lookAt(0, 0, 0);
 }
 

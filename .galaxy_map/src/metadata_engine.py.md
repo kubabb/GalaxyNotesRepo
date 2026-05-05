@@ -1,24 +1,47 @@
 ---
-title: "metadata_engine.py – STORYTELLER"
-date: 2026-05-04T23:42:00
-type: galaxy_map
+title: "metadata_engine"
+date: 2026-05-05T11:02:21
+type: SourceFile
 source: GalaxyNotes
-tags: #python #metadata #ai #semantic
+tags: #python #backend #agent
 ---
 
-# metadata_engine.py – STORYTELLER
+## Analiza: `src/metadata_engine.py`
 
-## Opis
-Analityk semantyczny. Generuje metadane Sci-Fi (Star_Class, Energy_Level, Brief) dla każdego pliku.
-Wykorzystuje LLM (OpenRouter, Gemma 4) do analizy kontekstowej i sugerowania nowych linków.
+Moduł Python zawierający 4 funkcji. Główne: clean_markdown, extract_first_sentence, star_class_from_name.
 
-## Powiązania
-- [[config/.env]] – klucz API OpenRouter
-- [[data/output/metadata.json]] – wyjściowy plik metadanych
-- [[.opencode/storyteller.md]] – definicja agenta AI
-- [[.galaxy_map/]] – wstrzykuje [[WikiLink]] do plików lustrzanych
+- **Rozszerzenie:** .py
+- **Lokalizacja:** `src/metadata_engine.py`
+- **Liczba linii:** ~96
 
-## Sensor Scan
-- **Star_Class**: Projekt aktywny
-- **Energy_Level**: Wysoka (wywołania API LLM)
-- **Brief**: Generuje metadane Sci-Fi i linki semantyczne.
+### Powiązane
+[[os]] [[re]] [[json]] [[time]] [[concurrent]] [[pathlib]] [[dotenv]] [[requests]]
+
+### Fragment
+```
+"""
+STORYTELLER (Metadata Agent) – EVOLUTION v2.0
+Deep Scan AI z retry logic, batch processing i fallbackiem lokalnym.
+Wykorzystuje OpenRouter API (Google Gemma 4) z backoff.
+"""
+import os
+import re
+import json
+import time
+import concurrent.futures
+from pathlib import Path
+from dotenv import load_dotenv
+
+try:
+    import requests
+except ImportError:
+    requests = None
+
+# Ładuj .env z config/
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+ENV_PATH = PROJECT_ROOT / "...
+```
+
+---
+*Wygenerowane przez Librarian* | [[01_Projects/GalaxyNotes/PLAN|PLAN]] | [[01_Projects/GalaxyNotes/Project_Log|Project Log]]

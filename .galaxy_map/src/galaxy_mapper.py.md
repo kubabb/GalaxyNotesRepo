@@ -1,23 +1,45 @@
 ---
-title: "galaxy_mapper.py – ASTRONOMER"
-date: 2026-05-04T23:42:00
-type: galaxy_map
+title: "galaxy_mapper"
+date: 2026-05-05T11:02:21
+type: SourceFile
 source: GalaxyNotes
-tags: #python #astrometry #3d #graph
+tags: #python #backend #agent
 ---
 
-# galaxy_mapper.py – ASTRONOMER
+## Analiza: `src/galaxy_mapper.py`
 
-## Opis
-Matematyk galaktyki. Oblicza wagi, współrzędne (X,Y,Z) i kolory gwiazd.
-Buduje graf linków z vaultu BRAIN i zapisuje `galaxy_data.json`.
+Moduł Python zawierający 5 funkcji. Główne: load_env, get_vault_path, should_skip.
 
-## Powiązania
-- [[src/metadata_engine]] – używa metadanych do wag
-- [[data/output/galaxy_data.json]] – wyjściowy plik danych
-- [[.opencode/astronomer.md]] – definicja agenta AI
+- **Rozszerzenie:** .py
+- **Lokalizacja:** `src/galaxy_mapper.py`
+- **Liczba linii:** ~100
 
-## Sensor Scan
-- **Star_Class**: Projekt aktywny
-- **Energy_Level**: Wysoka (obliczenia matematyczne)
-- **Brief**: Buduje galaktykę spiralną z linków wiedzy.
+### Powiązane
+[[os]] [[re]] [[json]] [[math]] [[random]] [[argparse]] [[pathlib]] [[collections]]
+
+### Fragment
+```
+"""
+ASTRONOMER v2.0 (Semantic Physics Refiner)
+Matematyk galaktyki z fizyką semantyczną.
+- Czyta pliki .md z vaultu.
+- Ekstrahuje [[WikiLinks]].
+- Grupuje węzły w ramiona spiralne na podstawie podobieństwa linków.
+- Przypisuje współrzędne 3D: ważniejsze notatki bliżej centrum.
+- Zapisuje galaxy_data.json w formacie v2.0.
+"""
+import os
+import re
+import json
+import math
+import random
+import argparse
+from pathlib import Path
+from collections import defaultdict
+
+# Ścieżki projektu
+PROJECT_ROOT = Pat...
+```
+
+---
+*Wygenerowane przez Librarian* | [[01_Projects/GalaxyNotes/PLAN|PLAN]] | [[01_Projects/GalaxyNotes/Project_Log|Project Log]]
