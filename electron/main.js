@@ -5,7 +5,7 @@ const fs = require('fs');
 
 // Ścieżki
 const PROJECT_ROOT = path.join(__dirname, '..');
-const PYTHON_SCRIPT = path.join(PROJECT_ROOT, 'src', 'main.py');
+const PYTHON_SCRIPT = path.join(PROJECT_ROOT, 'main.py');
 const DATA_DIR = path.join(PROJECT_ROOT, 'data');
 const PROJECTS_DIR = path.join(DATA_DIR, 'projects');
 
