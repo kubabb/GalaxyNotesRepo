@@ -218,30 +218,39 @@ def build_edges(nodes: dict):
     return edges
 
 
+def random_point_in_sphere(radius: float) -> tuple:
+    """Generuje losowy punkt wewnątrz sfery o zadanym promieniu (Marsaglia method)."""
+    while True:
+        x, y, z = random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)
+        d2 = x*x + y*y + z*z
+        if d2 <= 1:
+            r = radius * (d2 ** (1/3))  # uniform volume distribution
+            return (x * r, y * r, z * r)
+
+
 def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
     """
     Przypisuje współrzędne 3D (X, Y, Z) dla każdego węzła.
-    UKŁAD WOLUMETRYCZNY – ekstremalna dyspersja na wszystkich osiach.
-    Gwiazdy tworzą trójwymiarową chmurę; użytkownik jest WŚRÓD nich.
+    UKŁAD WOLUMETRYCZNY – pełna sfera. Gwiazdy rozrzucone w całej objętości,
+    nie tylko na płaszczyźnie. Użytkownik jest WŚRÓD nich z każdej strony.
     """
     positions = {}
     degrees = {name: len(data["links_in"]) + len(data["links_out"]) for name, data in nodes.items()}
     n = len(nodes)
 
-    # Klastry rozrzucone w całej objętości – galaktyka jako chmura
+    # Klastry jako sfery 3D – rozrzucone w całej objętości
     cluster_count = max(12, min(20, int(n ** 0.45)))
     clusters = []
     for _ in range(cluster_count):
         clusters.append({
-            "cx": random.uniform(-6000, 6000),
-            "cy": random.uniform(-3000, 3000),
-            "cz": random.uniform(-500, 500),
-            "radius_x": random.uniform(800, 1800),
-            "radius_y": random.uniform(800, 1800),
+            "cx": random.uniform(-5000, 5000),
+            "cy": random.uniform(-4000, 4000),
+            "cz": random.uniform(-4000, 4000),
+            "radius": random.uniform(900, 2200),
         })
 
-    # Supermasywna czarna dziura – mocne przyciąganie centrum
-    core = {"cx": 0, "cy": 0, "cz": 0, "radius_x": 1200, "radius_y": 1200}
+    # Supermasywna czarna dziura – centrum galaktyki
+    core = {"cx": 0, "cy": 0, "cz": 0, "radius": 1800}
     clusters.append(core)
 
     for name in nodes:
@@ -250,35 +259,26 @@ def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
         arm_index = groups.get(name, 0) % arm_count if arm_count else 0
 
         if degree == 0:
-            # Osierocone notatki – szeroko rozrzucone we wszystkich osiach
-            x = random.uniform(-9000, 9000)
-            y = random.uniform(-4000, 4000)
-            z = random.uniform(-200, 200)
+            # Osierocone notatki – szeroko poza głównym obszarem
+            x, y, z = random_point_in_sphere(7000)
         else:
             # Wybierz klaster deterministycznie
             cluster_idx = hash(name) % len(clusters)
             cluster = clusters[cluster_idx]
 
-            # Promień: ważniejsze bliżej środka klastra
-            max_rx = cluster["radius_x"]
-            max_ry = cluster["radius_y"]
-            rx = random.uniform(0, max_rx) * (1.0 - min(degree, 10) / 14.0)
-            ry = random.uniform(0, max_ry) * (1.0 - min(degree, 10) / 14.0)
-            rx += random.uniform(-200, 200)
-            ry += random.uniform(-200, 200)
-            rx = max(50, rx)
-            ry = max(50, ry)
+            # Promień wewnątrz sfery klastra – ważniejsze bliżej centrum
+            max_r = cluster["radius"]
+            r = random.uniform(0, max_r) * (1.0 - min(degree, 10) / 14.0)
+            dx, dy, dz = random_point_in_sphere(r)
 
-            theta = random.uniform(0, 2 * math.pi)
+            x = cluster["cx"] + dx
+            y = cluster["cy"] + dy
+            z = cluster["cz"] + dz
 
-            x = cluster["cx"] + rx * math.cos(theta)
-            y = cluster["cy"] + ry * math.sin(theta)
-            z = cluster["cz"] + random.uniform(-80, 80)
-
-            # Szum – na wszystkich osiach
-            x += random.uniform(-400, 400)
-            y += random.uniform(-400, 400)
-            z += random.uniform(-50, 50)
+            # Szum 3D
+            x += random.uniform(-500, 500)
+            y += random.uniform(-500, 500)
+            z += random.uniform(-500, 500)
 
             # Superważne notatki mocniej w centrum galaktyki
             if degree >= 8:
