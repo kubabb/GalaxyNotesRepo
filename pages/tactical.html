@@ -240,7 +240,7 @@ const CFG = {
   mouseSensitivity: 0.0008,
   mouseSensitivityHigh: 0.002,
   mouseSensitivityLow: 0.0003,
-  navStopDist: 60,
+  navStopDist: 120,
   fogDensity: 0.00004,
 };
 
@@ -262,10 +262,10 @@ const S = {
   clickTarget: null,
   clickNavActive: false,
   // Chase-cam params (rigid camera behind ship)
-  camDistance: 80,
+  camDistance: 220,
   camMinDist: 40,
   camMaxDist: 400,
-  camOffset: new THREE.Vector3(0, 18, 55), // behind and above ship in local space
+  camOffset: new THREE.Vector3(0, 35, 90), // behind and above ship in local space
   mouseDownRight: false,
   camYaw: 0,
   camPitch: 0.25,
@@ -547,9 +547,9 @@ function generateFallbackGalaxy() {
     S.nodes.push({ id, mesh, x, y, z, val: 1, color });
     S.meta[id] = { star_class: 'Fallback', energy_level: 'Standardowa', brief: 'Gwiazda generowana proceduralnie.', file: id };
   }
-  ship.position.set(0, 8000, 0);
-  ship.rotation.set(-Math.PI/4, 0, 0);
-  console.log('[WIZJER] Fallback gotowy. Statek nad galaktyką (0,8000,0), patrzy w dół.');
+  ship.position.set(0, 1200, 6000);
+  ship.rotation.set(-0.4, Math.PI, 0);
+  console.log('[WIZJER] Fallback gotowy. Statek nad galaktyką (0,1200,6000), patrzy w centrum.');
 }
 
 function buildGalaxy(galaxyData) {
@@ -590,8 +590,8 @@ function buildGalaxy(galaxyData) {
   });
 
   // Position ship outside the galaxy, facing down toward center
-  ship.position.set(0, 8000, 0);
-  ship.rotation.set(-Math.PI/4, 0, 0);
+  ship.position.set(0, 1200, 6000);
+  ship.rotation.set(-0.4, Math.PI, 0);
 }
 
 // ─── INPUT ───
@@ -657,6 +657,15 @@ window.addEventListener('wheel', e => {
   S.camDistance = Math.max(S.camMinDist, Math.min(S.camMaxDist, S.camDistance));
 });
 
+canvas.addEventListener('click', e => {
+  if (e.button !== 0) return;  // tylko LPM
+  // Nie reaguj jeśli właśnie przeciągaliśmy myszką (LPM drag)
+  if (S.mouseDownLeft) return;
+  const ndcX = (e.clientX / window.innerWidth) * 2 - 1;
+  const ndcY = -(e.clientY / window.innerHeight) * 2 + 1;
+  handleLeftClick(ndcX, ndcY);
+});
+
 // ─── RAYCASTING ───
 const raycaster = new THREE.Raycaster();
 const clickPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -667,7 +676,7 @@ function handleLeftClick(ndcX, ndcY) {
   const hits = raycaster.intersectObjects(S.nodeMeshes);
   if(hits.length>0) {
     const node = S.nodes.find(n=>n.mesh===hits[0].object);
-    if(node) { startNavToStar(node); return; }
+    if(node) { openHud(node); startNavToStar(node); return; }
   }
 
   // If no star hit, fly toward the clicked point on the galaxy plane (Y=0)
@@ -923,11 +932,11 @@ function updateSpeedHUD() {
 
 // ─── HUD ───
 window.resetCamera = function() {
-  S.camDistance = 80;
+  S.camDistance = 220;
   S.camYaw = 0;
   S.camPitch = 0.25;
-  ship.position.set(0, 8000, 0);
-  ship.rotation.set(-Math.PI/4, 0, 0);
+  ship.position.set(0, 1200, 6000);
+  ship.rotation.set(-0.4, Math.PI, 0);
 };
 window.toggleSettingsModal = function() {
   const m = document.getElementById('settings-modal');
