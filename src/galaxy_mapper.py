@@ -228,19 +228,20 @@ def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
     degrees = {name: len(data["links_in"]) + len(data["links_out"]) for name, data in nodes.items()}
     n = len(nodes)
 
-    # Klastry rozrzucone na szerokiej płaszczyźnie XY (kosmos 2D z lekką głębią Z)
-    cluster_count = max(8, min(16, int(n ** 0.4)))
+    # Klastry rozrzucone WZDŁUŻ OSI X – galaktyka jako szeroki pas
+    cluster_count = max(12, min(20, int(n ** 0.45)))
     clusters = []
     for _ in range(cluster_count):
         clusters.append({
-            "cx": random.uniform(-3500, 3500),
-            "cy": random.uniform(-1600, 1600),
-            "cz": random.uniform(-25, 25),
-            "radius": random.uniform(500, 1200),
+            "cx": random.uniform(-6000, 6000),
+            "cy": random.uniform(-400, 400),
+            "cz": random.uniform(-10, 10),
+            "radius_x": random.uniform(800, 1800),
+            "radius_y": random.uniform(150, 350),
         })
 
     # Supermasywna czarna dziura – mocne przyciąganie centrum
-    core = {"cx": 0, "cy": 0, "cz": 0, "radius": 400}
+    core = {"cx": 0, "cy": 0, "cz": 0, "radius_x": 600, "radius_y": 200}
     clusters.append(core)
 
     for name in nodes:
@@ -249,38 +250,41 @@ def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
         arm_index = groups.get(name, 0) % arm_count if arm_count else 0
 
         if degree == 0:
-            # Osierocone notatki – bardzo szeroko na osi X
-            x = random.uniform(-5500, 5500)
-            y = random.uniform(-2800, 2800)
-            z = random.uniform(-40, 40)
+            # Osierocone notatki – bardzo szeroko na X, wąsko na Y
+            x = random.uniform(-9000, 9000)
+            y = random.uniform(-600, 600)
+            z = random.uniform(-20, 20)
         else:
             # Wybierz klaster deterministycznie
             cluster_idx = hash(name) % len(clusters)
             cluster = clusters[cluster_idx]
 
-            # Promień: ważniejsze bliżej środka klastra
-            max_r = cluster["radius"]
-            r = random.uniform(0, max_r) * (1.0 - min(degree, 10) / 12.0)
-            r += random.uniform(-180, 180)
-            r = max(40, r)
+            # Promień X: ważniejsze bliżej środka klastra
+            max_rx = cluster["radius_x"]
+            max_ry = cluster["radius_y"]
+            rx = random.uniform(0, max_rx) * (1.0 - min(degree, 10) / 14.0)
+            ry = random.uniform(0, max_ry) * (1.0 - min(degree, 10) / 14.0)
+            rx += random.uniform(-200, 200)
+            ry += random.uniform(-80, 80)
+            rx = max(50, rx)
+            ry = max(20, ry)
 
-            # Rozłożenie na płaszczyźnie XY z lekką głębią Z
             theta = random.uniform(0, 2 * math.pi)
 
-            x = cluster["cx"] + r * math.cos(theta)
-            y = cluster["cy"] + r * math.sin(theta)
-            z = cluster["cz"] + random.uniform(-20, 20)
+            x = cluster["cx"] + rx * math.cos(theta)
+            y = cluster["cy"] + ry * math.sin(theta)
+            z = cluster["cz"] + random.uniform(-8, 8)
 
-            # Szum – utrzymujemy głównie na XY, Z tylko delikatnie
-            x += random.uniform(-300, 300)
-            y += random.uniform(-300, 300)
-            z += random.uniform(-10, 10)
+            # Szum – głównie na X
+            x += random.uniform(-400, 400)
+            y += random.uniform(-100, 100)
+            z += random.uniform(-5, 5)
 
             # Superważne notatki mocniej w centrum galaktyki
             if degree >= 8:
-                x *= 0.2
-                y *= 0.2
-                z *= 0.2
+                x *= 0.15
+                y *= 0.15
+                z *= 0.15
 
         positions[name] = {
             "x": round(x, 2),

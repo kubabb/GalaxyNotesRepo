@@ -686,17 +686,24 @@ function updateFlight() {
     return;
   }
 
-  // Pitch / Yaw from mouse delta (RMB hold)
+  // Pitch / Yaw from mouse delta (RMB hold) – clamped
   if(S.mxDelta !== 0 || S.myDelta !== 0) {
     ship.rotateX(-S.myDelta * CFG.mouseSensitivity);
     ship.rotateY(-S.mxDelta * CFG.mouseSensitivity);
     S.mxDelta = 0;
     S.myDelta = 0;
+    // Clamp pitch (X rotation) so ship never flips upside-down
+    const euler = new THREE.Euler().setFromQuaternion(ship.quaternion, 'YXZ');
+    euler.x = Math.max(-1.4, Math.min(1.4, euler.x));
+    ship.quaternion.setFromEuler(euler);
   }
 
-  // Roll
-  if(S.keys['KeyQ']) ship.rotateZ(CFG.rollSpeed);
-  if(S.keys['KeyE']) ship.rotateZ(-CFG.rollSpeed);
+  // Roll (clamped, auto-levels when keys released)
+  const euler = new THREE.Euler().setFromQuaternion(ship.quaternion, 'YXZ');
+  if(S.keys['KeyQ']) euler.z = Math.min(euler.z + CFG.rollSpeed, 0.6);
+  else if(S.keys['KeyE']) euler.z = Math.max(euler.z - CFG.rollSpeed, -0.6);
+  else euler.z *= 0.92; // auto-level roll when not holding keys
+  ship.quaternion.setFromEuler(euler);
 
   // Thrust in local space
   const thrust = new THREE.Vector3(0, 0, 0);
