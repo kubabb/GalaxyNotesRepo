@@ -14,8 +14,8 @@
 - [x] Krok 5: Przeniesienie frontendu do `renderer/`
 - [x] Krok 6: `renderer/gp-helper.js` — auto-detekcja Electron vs Web
 - [x] Krok 7: Zamiana fetch na GP.loadJSON w dashboard/tactical/log
-- [ ] Krok 8: Upload plików przez IPC (dashboard)
-- [ ] Krok 9: Test Electron start
+- [x] Krok 8: Upload plików przez IPC (dashboard)
+- [x] Krok 9: Test Electron start — PYTHON DZIAŁA
 - [ ] Krok 10: Build i package  
 
 ---

@@ -12,14 +12,27 @@ const PROJECTS_DIR = path.join(DATA_DIR, 'projects');
 let mainWindow;
 let pythonProcess = null;
 
+// ─── ENSURE DEFAULT PROJECT ───
+function ensureDefaultProject() {
+  fs.mkdirSync(PROJECTS_DIR, { recursive: true });
+  // Default uses existing BRAIN vault for first run
+  const defaultVault = 'C:/Users/kubar/OneDrive/Dokumenty/BRAIN';
+  return defaultVault;
+}
+
 // ─── AUTO-START PYTHON BACKEND ───
-function startPythonBackend(projectPath = path.join(PROJECTS_DIR, 'default')) {
+function startPythonBackend(projectPath) {
+  if (!projectPath) {
+    projectPath = ensureDefaultProject();
+  }
+
   if (pythonProcess) {
     pythonProcess.kill();
     pythonProcess = null;
   }
 
   console.log('[ELECTRON] Starting Python backend:', PYTHON_SCRIPT);
+  console.log('[ELECTRON] Project path:', projectPath);
   
   pythonProcess = spawn('python', [PYTHON_SCRIPT, '--brain', projectPath], {
     cwd: PROJECT_ROOT,

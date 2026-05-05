@@ -461,13 +461,37 @@
     render();
   });
 
-  importBtn.addEventListener('click', () => {
+  importBtn.addEventListener('click', async () => {
     const selected = files.filter(f => f.selected && f.size <= MAX_SIZE);
     if (!selected.length) {
       alert('NO VALID FILES SELECTED // ABORT');
       return;
     }
-    // Generate PowerShell script for download
+
+    // ELECTRON MODE: upload via IPC
+    if (typeof GP !== 'undefined' && GP.isElectron && GP.isElectron()) {
+      const projectName = localStorage.getItem('galaxy_current_project') || 'default';
+      importBtn.textContent = 'UPLOADING...';
+      importBtn.disabled = true;
+      try {
+        const result = await GP.uploadFiles(selected.map(f => f.file), projectName);
+        if (result.error) {
+          alert('UPLOAD ERROR: ' + result.message);
+        } else {
+          alert(`UPLOADED ${result.imported} file(s) to project "${projectName}"`);
+          files = [];
+          render();
+        }
+      } catch (e) {
+        alert('UPLOAD FAILED: ' + e.message);
+      } finally {
+        importBtn.textContent = 'INITIATE IMPORT';
+        importBtn.disabled = false;
+      }
+      return;
+    }
+
+    // WEB FALLBACK: Generate PowerShell script
     const inboxPath = 'data/inbox';
     let ps1 = `# GalaxyNotesProject – Auto-Import Script\r\n`;
     ps1 += `# Generated: ${new Date().toISOString()}\r\n`;
