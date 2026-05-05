@@ -218,81 +218,89 @@ def build_edges(nodes: dict):
     return edges
 
 
-def random_point_in_sphere(radius: float) -> tuple:
-    """Generuje losowy punkt wewnątrz sfery o zadanym promieniu (Marsaglia method)."""
-    while True:
-        x, y, z = random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)
-        d2 = x*x + y*y + z*z
-        if d2 <= 1:
-            r = radius * (d2 ** (1/3))  # uniform volume distribution
-            return (x * r, y * r, z * r)
-
-
 def assign_coordinates(nodes: dict, groups: dict, arm_count: int):
     """
     Przypisuje współrzędne 3D (X, Y, Z) dla każdego węzła.
-    UKŁAD WOLUMETRYCZNY – pełna sfera. Gwiazdy rozrzucone w całej objętości,
-    nie tylko na płaszczyźnie. Użytkownik jest WŚRÓD nich z każdej strony.
+    UKŁAD GALAKTYCZNY – bulge, disk, halo.
     """
     positions = {}
     degrees = {name: len(data["links_in"]) + len(data["links_out"]) for name, data in nodes.items()}
     n = len(nodes)
 
-    # Klastry jako sfery 3D – rozrzucone w całej objętości
-    cluster_count = max(12, min(20, int(n ** 0.45)))
-    clusters = []
-    for _ in range(cluster_count):
-        clusters.append({
-            "cx": random.uniform(-5000, 5000),
-            "cy": random.uniform(-4000, 4000),
-            "cz": random.uniform(-4000, 4000),
-            "radius": random.uniform(900, 2200),
-        })
-
-    # Supermasywna czarna dziura – centrum galaktyki
-    core = {"cx": 0, "cy": 0, "cz": 0, "radius": 1800}
-    clusters.append(core)
-
     for name in nodes:
         degree = degrees[name]
         val = min(max(degree, 1), 10)
-        arm_index = groups.get(name, 0) % arm_count if arm_count else 0
 
-        if degree == 0:
-            # Osierocone notatki – szeroko poza głównym obszarem
-            x, y, z = random_point_in_sphere(7000)
+        if degree >= 8:
+            # BULGE
+            R_BULGE = 600
+            H_BULGE = 180
+            u = random.random()
+            r = -H_BULGE * math.log(1 - u * (1 - math.exp(-R_BULGE / H_BULGE)))
+            theta = math.acos(2 * random.random() - 1)
+            phi = 2 * math.pi * random.random()
+            x = r * math.sin(theta) * math.cos(phi)
+            y = r * math.sin(theta) * math.sin(phi)
+            z = r * math.cos(theta)
+            color = "#FFFFFF"
+            group = "bulge"
+        elif degree > 0:
+            # DISK
+            R_DISK_MAX = 5000
+            H_R = 1200
+            PITCH = 0.30
+            R_MIN = 150
+            H_Z = 180
+            Z_ARM_OFFSET = 350
+
+            arm_count = max(3, min(6, int(math.sqrt(n))))
+            arm_index = hash(name) % arm_count
+
+            u = random.random()
+            r = -H_R * math.log(1 - u * (1 - math.exp(-R_DISK_MAX / H_R)))
+            r = max(r, R_MIN)
+
+            arm_base = 2 * math.pi * arm_index / arm_count
+            theta = arm_base + math.log(r / R_MIN) / math.tan(PITCH)
+            theta += random.gauss(0, 0.12)
+
+            x = r * math.cos(theta)
+            y = r * math.sin(theta)
+            z = random.gauss(0, H_Z)
+            z += Z_ARM_OFFSET * math.sin(2 * math.pi * arm_index / arm_count)
+
+            # Mały szum pozycyjny
+            x += random.uniform(-200, 200)
+            y += random.uniform(-200, 200)
+            z += random.uniform(-100, 100)
+
+            color = ARM_COLORS[arm_index % len(ARM_COLORS)]
+            group = f"ramie_{arm_index+1}"
         else:
-            # Wybierz klaster deterministycznie
-            cluster_idx = hash(name) % len(clusters)
-            cluster = clusters[cluster_idx]
+            # HALO
+            R_HALO = 15000
+            ALPHA = 2.2
 
-            # Promień wewnątrz sfery klastra – ważniejsze bliżej centrum
-            max_r = cluster["radius"]
-            r = random.uniform(0, max_r) * (1.0 - min(degree, 10) / 14.0)
-            dx, dy, dz = random_point_in_sphere(r)
+            u = random.random()
+            r = R_HALO * u ** (1.0 / (3.0 - ALPHA))
 
-            x = cluster["cx"] + dx
-            y = cluster["cy"] + dy
-            z = cluster["cz"] + dz
+            theta = math.acos(2 * random.random() - 1)
+            phi = 2 * math.pi * random.random()
 
-            # Szum 3D
-            x += random.uniform(-500, 500)
-            y += random.uniform(-500, 500)
-            z += random.uniform(-500, 500)
+            x = r * math.sin(theta) * math.cos(phi)
+            y = r * math.sin(theta) * math.sin(phi)
+            z = r * math.cos(theta)
 
-            # Superważne notatki mocniej w centrum galaktyki
-            if degree >= 8:
-                x *= 0.15
-                y *= 0.15
-                z *= 0.15
+            color = "#444444"
+            group = "halo"
 
         positions[name] = {
             "x": round(x, 2),
             "y": round(y, 2),
             "z": round(z, 2),
             "val": val,
-            "color": ARM_COLORS[arm_index % len(ARM_COLORS)],
-            "group": f"ramie_{arm_index + 1}",
+            "color": color,
+            "group": group,
         }
 
     return positions
