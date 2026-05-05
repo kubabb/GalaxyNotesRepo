@@ -98,6 +98,10 @@ python src/librarian.py
 
 **Always use agents when working on this project.** They are the primary workforce, not just helpers.
 
+**See `.opencode/rules.md` for the complete agent workflow rules.**
+
+**Key principle: I do NOT do the agents' work myself.** Each agent is a separate Python process launched via `main.py`. My role is coordination, not execution.
+
 ### Parallel Execution (v3.0)
 
 `main.py` runs agents in parallel via `ThreadPoolExecutor(max_workers=3)`:
