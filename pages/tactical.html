@@ -180,7 +180,7 @@
     <div class="grid grid-cols-2 gap-2 mb-5 font-mono text-xs text-[#e2e2e2]">
       <div><span class="text-[#00f3ff]">W / S</span> – ciąg (przód / tył)</div>
       <div><span class="text-[#00f3ff]">A / D</span> – obrót (yaw)</div>
-      <div><span class="text-[#00f3ff]">R / F</span> – wysokość (góra / dół)</div>
+      <div><span class="text-[#00f3ff]">R / F</span> – pitch (nose góra / dół)</div>
       <div><span class="text-[#00f3ff]">Q / E</span> – roll (beczka)</div>
       <div><span class="text-[#00f3ff]">Shift</span> – warp (hiperprędkość)</div>
       <div><span class="text-[#00f3ff]">C / ESC</span> – anuluj nawigację</div>
@@ -209,7 +209,7 @@
 
 <!-- Telemetry -->
 <div id="telemetry">
-  W/S – Ciąg | A/D – Obrót (Yaw) | R/F – Wysokość | Q/E – Roll<br>
+  W/S – Ciąg | A/D – Obrót (Yaw) | R/F – Pitch (nose) | Q/E – Roll<br>
   LPM (przytrzymaj) – Obrót kamery (Orbit) | Scroll – Zoom | Shift – Warp | TAB – Menu | C/ESC – Anuluj
 </div>
 
@@ -234,7 +234,8 @@ const CFG = {
   lineColor: 0x00aaff, lineOpacity: 0.06,
   speed: 4.0, maxSpeed: 10.0, warpSpeed: 25.0,
   rollSpeed: 0.035,
-  yawSpeed: 0.075,
+  yawSpeed: 0.08,
+  pitchSpeed: 0.06,
   mouseSensitivity: 0.0008,
   mouseSensitivityHigh: 0.002,
   mouseSensitivityLow: 0.0003,
@@ -253,7 +254,7 @@ const S = {
   meta: {}, selected: null, lockedTarget: null,
   navActive: false, navTarget: null,
   velocity: new THREE.Vector3(),
-  acceleration: 0.15,
+  acceleration: 0.6,
   drag: 0.94,
   maxVelocity: 12.0,
   sensMode: 1,
@@ -543,9 +544,9 @@ function generateFallbackGalaxy() {
     S.nodes.push({ id, mesh, x, y, z, val: 1, color });
     S.meta[id] = { star_class: 'Fallback', energy_level: 'Standardowa', brief: 'Gwiazda generowana proceduralnie.', file: id };
   }
-  ship.position.set(0, 12000, 0);
-  ship.rotation.set(0, 0, 0);
-  console.log('[WIZJER] Fallback gotowy. Statek poza galaktyką (0,12000,0), patrzy na -Z.');
+  ship.position.set(0, 8000, 0);
+  ship.rotation.set(-Math.PI/4, 0, 0);
+  console.log('[WIZJER] Fallback gotowy. Statek nad galaktyką (0,8000,0), patrzy w dół.');
 }
 
 function buildGalaxy(galaxyData) {
@@ -585,9 +586,9 @@ function buildGalaxy(galaxyData) {
     }
   });
 
-  // Position ship outside the galaxy, facing toward center
-  ship.position.set(0, 12000, 0);
-  ship.rotation.set(0, 0, 0);
+  // Position ship outside the galaxy, facing down toward center
+  ship.position.set(0, 8000, 0);
+  ship.rotation.set(-Math.PI/4, 0, 0);
 }
 
 // ─── INPUT ───
@@ -758,6 +759,10 @@ function updateFlight() {
   if(S.keys['KeyA']) ship.rotateY(CFG.yawSpeed);
   if(S.keys['KeyD']) ship.rotateY(-CFG.yawSpeed);
 
+  // Pitch (R/F) – nose up/down
+  if(S.keys['KeyR']) ship.rotateX(CFG.pitchSpeed);
+  if(S.keys['KeyF']) ship.rotateX(-CFG.pitchSpeed);
+
   // Roll (Q/E) – clamped, auto-levels
   const euler = new THREE.Euler().setFromQuaternion(ship.quaternion, 'YXZ');
   if(S.keys['KeyQ']) euler.z = Math.min(euler.z + CFG.rollSpeed, 0.6);
@@ -765,12 +770,15 @@ function updateFlight() {
   else euler.z *= 0.92;
   ship.quaternion.setFromEuler(euler);
 
-  // Thrust in local space
+  // Clamp pitch so ship never flips upside-down
+  const euler2 = new THREE.Euler().setFromQuaternion(ship.quaternion, 'YXZ');
+  euler2.x = Math.max(-1.5, Math.min(1.5, euler2.x));
+  ship.quaternion.setFromEuler(euler2);
+
+  // Thrust in local space (only forward/back)
   const thrust = new THREE.Vector3(0, 0, 0);
   if(S.keys['KeyW']) thrust.z -= 1;
   if(S.keys['KeyS']) thrust.z += 1;
-  if(S.keys['KeyR']) thrust.y += 1;
-  if(S.keys['KeyF']) thrust.y -= 1;
 
   let maxSpd = CFG.speed;
   if(S.keys['ShiftLeft']||S.keys['ShiftRight']) maxSpd = CFG.warpSpeed;
