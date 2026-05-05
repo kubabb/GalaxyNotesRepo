@@ -1,7 +1,7 @@
 ---
 title: "AGENTS"
-date: 2026-05-05T12:10:39
-type: SourceFile
+date: 2026-05-05T12:00:00
+type: doc
 source: GalaxyNotes
 tags: #markdown #docs #design
 ---
@@ -12,7 +12,7 @@ Dokumentacja projektu GalaxyNotesProject.
 
 - **Rozszerzenie:** .md
 - **Lokalizacja:** `AGENTS.md`
-- **Liczba linii:** ~55
+- **Liczba linii:** ~150
 
 ### Powiązane
 
@@ -26,7 +26,12 @@ Compact cheat-sheet for OpenCode. Polish-language Python project that turns an O
 ## Entrypoints & Boundaries
 
 - **Main orchestrator:** `main.py` — adds `src/` to `sys.path`, then runs `env_guard` → `galaxy_mapper` → `metadata_engine` → `librarian` → `debugger` → optional `git_manager.push`.
-- **Landing page (product):** `index.html` in repo root — cyberpunk marketing page, first entry point for web ...
+- **Landing page (product):** `index.html` in repo root — cyberpunk marketing page, first entry point for web users. Links to cockpit and dashboard.
+- **Multi-Page App (Tactical OS):**
+  - `pages/dashboard.html` — Mission Control (stats, health, quick actions)
+  - `pages/tactical.html` — 3D Cockpit with 6DOF flight engine
+  - `pages/log.html` — Terminal-style flight log / note browser
+  - `pages/settings.html` — System settings (localStorage only)
 ```
 
 ---

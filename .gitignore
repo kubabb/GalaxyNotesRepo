@@ -38,6 +38,8 @@ logs/
 
 # Galaxy output (generated data)
 data/output/
+data/inbox/
+.galaxy_map/
 *.json
 
 # Local test files

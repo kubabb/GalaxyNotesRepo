@@ -129,6 +129,7 @@ Agents do **not** conflict because:
 | **SECURITY-OFFICER** | `src/env_guard.py` | Validate `.env`, `.gitignore`, API keys before any run. Never skip. |
 | **ASTRONOMER** | `src/galaxy_mapper.py` | Change galaxy shape, coordinates, clusters, spiral arms, Z-depth, node colors. |
 | **STORYTELLER** | `src/metadata_engine.py` | Change metadata format, brief style, star classes, content truncation, API mode. |
+| **CODER** | `pages/*.html`, `dist/`, `index.html` | Build / modify the 3D cockpit, HUD, UI components, Three.js scene, cyberpunk styling. Front-end & 3D engineer. |
 | **LIBRARIAN** | `src/librarian.py` | Sync `.galaxy_map/` documentation mirrors, update `Project_Log.md`. Always runs. |
 | **DEBUGGER** | `src/debugger.py` | Run QA before push. Checks API leaks, JSON validity, Python compile. |
 | **GIT-PUSHER** | `src/git_manager.py` | Push to remote. Runs only with `--push` flag. |
